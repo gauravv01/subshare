@@ -1,0 +1,21 @@
+2.3 User Roles and Permissions (Detailed)
+•	Account Holders:
+o	List Subscriptions: Create a subscription listing by selecting a service (e.g., Netflix), specifying the number of available seats, setting a price per seat, and choosing a billing cycle.
+o	Share Access Details: Securely provide co-subscribers with access information (e.g., email and password for Slack, or profile and PIN for Netflix) through an encrypted section of the platform.
+o	Manage Co-subscribers: View a list of current co-subscribers, approve join requests, remove co-subscribers if necessary, and monitor seat occupancy (e.g., 2/4 seats filled).
+o	Track Payments: Access a dashboard showing payments received from co-subscribers, including dates and amounts, minus platform fees.
+o	Communicate with Co-subscribers: Send messages or notifications via the platform (e.g., “Profile 2 is now assigned to you”).
+o	Update Subscription Details: Adjust pricing, seat availability, or access details as needed (e.g., change Netflix password and redistribute).
+•	Co-subscribers:
+o	Search and Join Subscriptions: Browse available subscriptions (e.g., Netflix with 2 seats open at $5/month) or use matchmaking to find a match based on service and price preferences.
+o	Make Payments: Pay the account holder through the platform, with options to set up recurring payments (e.g., monthly via credit card).
+o	Access Shared Details: View access credentials (e.g., email, password, assigned Netflix profile) once payment is confirmed, accessible only while subscribed.
+o	Leave a Subscription: Opt out at any time, triggering a notification to the account holder and halting future payments; request a prorated refund if applicable.
+o	Rate and Review: After leaving or completing a subscription cycle, rate the account holder (1-5 stars) and write a review (e.g., “Reliable, quick to share access”).
+o	Check Seat Status: Confirm their active status within the subscription (e.g., “You’re assigned Profile 3”).
+•	Admins:
+o	Manage Services: Add new services (e.g., Netflix with 4 seats, $5/seat, monthly billing), edit existing ones (e.g., update pricing), or remove discontinued services.
+o	Configure Service Details: Input all required fields (name, icon, link, seats, pricing, billing cycle, details to share, onboarding instructions) for each service.
+o	Monitor Users: View user profiles, roles, and subscription activity; intervene in disputes (e.g., co-subscriber not receiving Netflix access).
+o	Handle Disputes: Mediate issues like payment failures or access complaints, with the ability to suspend users if necessary.
+o	Analyze Platform Performance: Access data on subscription usage, user growth, and revenue trends.
