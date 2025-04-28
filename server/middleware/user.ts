@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../db";
 import jwt from "jsonwebtoken";
+import sessionService from '../services/sessions';
 
 interface JwtPayload {
   userId: string;
@@ -18,5 +19,9 @@ export const getUser = async (req: any, res: Response, next: NextFunction) => {
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
     req.user = user;
     
+    if (req.session?.id) {
+        await sessionService.updateSessionActivity(req.session.id);
+    }
+
     next();
 };

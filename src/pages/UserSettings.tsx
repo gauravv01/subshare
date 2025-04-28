@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Switch } from "../components/ui/switch";
-  import { Separator } from "../components/ui/separator";
+import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { 
   CreditCard, 
@@ -25,22 +25,44 @@ import {
   Receipt,
   Globe,
   Mail,
-  Phone
+  Phone,
+  Loader2,
+  Badge
 } from "lucide-react";
 import { useProfile } from "../context/ProfileProvider";
 import { useBank } from "../context/BankProvider";
+import { useSecurity } from '../context/SecurityProvider';
+import { useSessions } from '../context/SessionProvider';
+import { Profile, Session, BankDetails, WithdrawalMethod } from '../types/settings';
+import { formatDistanceToNow } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import QRCode from "react-qr-code";
+import UAParser from 'ua-parser-js';
 
 export default function UserSettings() {
   const { toast } = useToast();
-  const { profile, updateProfile } = useProfile();
-  const { bankDetails, fetchBankDetails , updateBankDetails, fetchWithdrawalMethods, updateWithdrawalMethod, createWithdrawalMethod, withdrawalMethods } = useBank();
+  const { profile, updateProfile, updateNotificationPreferences,fetchProfile } = useProfile();
+  const { bankDetails, fetchBankDetails, updateBankDetails, fetchWithdrawalMethods, updateWithdrawalMethod, createWithdrawalMethod, withdrawalMethods } = useBank();
+  const { 
+    twoFactorEnabled, 
+    twoFactorMethod, 
+    setup2FA, 
+    verify2FA, 
+    updatePassword
+  } = useSecurity();
+  const { 
+    sessions, 
+    fetchSessions, 
+    terminateSession, 
+    terminateAllOtherSessions 
+  } = useSessions();
   const [currentTab, setCurrentTab] = useState("profile");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Profile form states
-  const [fullName, setFullName] = useState(profile?.name || "Gaurav");
-  const [email, setEmail] = useState(profile?.email || "vermagaurav171995@gmail.com");
-  const [phone, setPhone] = useState(profile?.phoneNumber || "+1234567890");
+  const [fullName, setFullName] = useState(profile?.name || "");
+  const [email, setEmail] = useState(profile?.email || "");
+  const [phone, setPhone] = useState(profile?.phoneNumber || "");
   
   // Payment method states
   const [paymentMethod, setPaymentMethod] = useState(bankDetails?.type || "");
@@ -65,111 +87,288 @@ export default function UserSettings() {
   const [newMemberAlerts, setNewMemberAlerts] = useState(profile?.newMemberAlerts || true);
   const [marketingEmails, setMarketingEmails] = useState(profile?.marketingEmails || false);
 
-  useEffect(() => {
-    fetchBankDetails();
-    fetchWithdrawalMethods();
-  }, []);
-  
-  // Handle profile form submission
-  const handleProfileSubmit = async   (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    const updatedProfile = {
-      ...profile,
-      name: fullName,
-      email: email,
-      phoneNumber: phone,
-      country: country,
-      language: language,
-      timezone: timezone
-    };
-    
-    await updateProfile(updatedProfile);
+  // Password states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
+  // 2FA states
+  const [selectedMethod, setSelectedMethod] = useState<'2FA_APP' | 'SMS' | 'EMAIL'>('2FA_APP');
+  const [verificationCode, setVerificationCode] = useState("");
+
+  // Add loading states for each section
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [securityLoading, setSecurityLoading] = useState(false);
+
+  // Add initial data fetching
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        await Promise.all([
+          fetchProfile(),
+          fetchBankDetails(),
+          fetchWithdrawalMethods(),
+          fetchSessions(),
+        ]);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load some settings. Please refresh.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.name || "");
+      setEmail(profile.email || "");
+      setPhone(profile.phoneNumber || "");
+      setCountry(profile.country || "");
+      setLanguage(profile.language || "");
+      setTimezone(profile.timezone || "");
+    }
+  }, [profile]);
+  
+  // Update profile handler with proper error handling
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await updateProfile({
+        name: fullName,
+        email,
+        phoneNumber: phone,
+        country,
+        language,
+        timezone
+      });
+
+      // Update notification preferences separately
+      await updateNotificationPreferences({
+        emailNotifications,
+        paymentReminders,
+        newMemberAlerts,
+        marketingEmails,
+      });
+
       toast({
         title: "Profile Updated",
-        description: "Your profile information has been updated.",
+        description: "Your profile and preferences have been updated.",
       });
-      setIsSubmitting(false);
-    }, 1000);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setProfileLoading(false);
+    }
   };
   
-  // Handle payment method form submission
+  // Update payment method handler with validation
   const handlePaymentMethodSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    const updatedBankDetails = {
-      ...bankDetails,
-      cardNumber,
-      cardExpirationDate: cardExpiry,
-      cardCvv: cardCVC,
-      provider: paypalEmail
-    };
-    
-    await updateBankDetails(updatedBankDetails);
+    setBankLoading(true);
 
+    try {
+      if (paymentMethod === 'CARD') {
+        // Basic card validation
+        if (!cardNumber || !cardExpiry || !cardCVC) {
+          throw new Error('Please fill in all card details');
+        }
 
-    // Simulate API call
-    setTimeout(() => {
+        await updateBankDetails({
+          type: 'CARD',
+          cardNumber,
+          cardExpirationDate: cardExpiry,
+          cardCvv: cardCVC,
+        });
+      } else if (paymentMethod === 'PAYPAL') {
+        if (!paypalEmail) {
+          throw new Error('Please enter PayPal email');
+        }
+
+        await updateBankDetails({
+          type: 'PAYPAL',
+          provider: paypalEmail,
+        });
+      }
+
       toast({
         title: "Payment Method Updated",
-        description: "Your payment method has been saved.",
+        description: "Your payment method has been saved successfully.",
       });
-      setIsSubmitting(false);
-    }, 1000);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setBankLoading(false);
+    }
   };
   
-  // Handle withdrawal method form submission
-  const handleWithdrawalMethodSubmit = (e: React.FormEvent) => {
+  // Update withdrawal method handler
+  const handleWithdrawalMethodSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    setBankLoading(true);
+
+    try {
+      if (withdrawalMethod === 'BANK') {
+        if (!bankName || !accountNumber || !routingNumber) {
+          throw new Error('Please fill in all bank details');
+        }
+
+        await createWithdrawalMethod({
+          type: 'BANK',
+          provider: bankName,
+          accountNumber,
+          routingNumber,
+        });
+      } else if (withdrawalMethod === 'PAYPAL') {
+        if (!paypalWithdrawalEmail) {
+          throw new Error('Please enter PayPal email');
+        }
+
+        await createWithdrawalMethod({
+          type: 'PAYPAL',
+          provider: paypalWithdrawalEmail,
+        });
+      }
+
       toast({
         title: "Withdrawal Method Updated",
-        description: "Your withdrawal method has been saved.",
+        description: "Your withdrawal method has been saved successfully.",
       });
-      setIsSubmitting(false);
-    }, 1000);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setBankLoading(false);
+    }
   };
-  
-  // Handle notification preferences form submission
-  const handleNotificationsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+  // Handle session management
+  const handleTerminateSession = async (sessionId: string) => {
+    try {
+      await terminateSession(sessionId);
+      await fetchSessions(); // Refresh sessions list
+      
       toast({
-        title: "Notification Preferences Updated",
-        description: "Your notification settings have been saved.",
+        title: "Session Terminated",
+        description: "The device has been logged out successfully.",
       });
-      setIsSubmitting(false);
-    }, 1000);
+    } catch (error) {
+      handleError(error);
+    }
   };
-  
+
+  const handleTerminateAllSessions = async () => {
+    try {
+      await terminateAllOtherSessions();
+      await fetchSessions(); // Refresh sessions list
+      
+      toast({
+        title: "Sessions Terminated",
+        description: "All other devices have been logged out.",
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  // Handle 2FA setup with QR code modal
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+
+  const handle2FASetup = async () => {
+    setSecurityLoading(true);
+    try {
+      const result = await setup2FA(selectedMethod);
+      
+      if (selectedMethod === '2FA_APP' && result.otpauthUrl) {
+        setQrCodeUrl(result.otpauthUrl);
+        setShowQRModal(true);
+      }
+
+      toast({
+        title: "2FA Setup Started",
+        description: selectedMethod === '2FA_APP' 
+          ? "Scan the QR code with your authenticator app"
+          : "Please check your email/phone for the verification code",
+      });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  // Handle 2FA verification
+  const handleVerify2FA = async () => {
+    try {
+      await verify2FA(verificationCode);
+      toast({
+        title: "2FA Enabled",
+        description: "Two-factor authentication has been enabled.",
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
   // Handle password form submission
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords don't match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await updatePassword(currentPassword, newPassword);
       toast({
         title: "Password Updated",
         description: "Your password has been changed successfully.",
       });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      handleError(error);
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handle2FADisable = async () => {
+    setSecurityLoading(true);
+    try {
+      await verify2FA(verificationCode);
+      setShowQRModal(false);
+      setQrCodeUrl('');
+      setVerificationCode('');
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  const handleError = (error: unknown) => {
+    const message = error instanceof Error 
+      ? error.message 
+      : 'An unexpected error occurred';
       
-      // Reset password fields
-      const form = e.target as HTMLFormElement;
-      form.reset();
-    }, 1000);
+    toast({
+      title: "Error",
+      description: message,
+      variant: "destructive",
+    });
   };
 
   return (
@@ -305,8 +504,13 @@ export default function UserSettings() {
                     </div>
                   </div>
                   
-                  <Button type="submit" disabled={isSubmitting} className="  hover:bg-primary/90" variant={"outline"} >
-                    {isSubmitting ? "Updating..." : "Update Profile"}
+                  <Button 
+                    type="submit" 
+                    disabled={profileLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {profileLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {profileLoading ? "Updating..." : "Update Profile"}
                   </Button>
                 </form>
               </CardContent>
@@ -931,6 +1135,8 @@ export default function UserSettings() {
                       <Input 
                         id="currentPassword"
                         type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="Enter your current password"
                       />
                     </div>
@@ -939,6 +1145,8 @@ export default function UserSettings() {
                       <Input 
                         id="newPassword"
                         type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Enter new password"
                       />
                     </div>
@@ -947,6 +1155,8 @@ export default function UserSettings() {
                       <Input 
                         id="confirmPassword"
                         type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Confirm new password"
                       />
                     </div>
@@ -972,10 +1182,22 @@ export default function UserSettings() {
                     <div>
                       <h3 className="font-medium">Two-Factor Authentication</h3>
                       <p className="text-sm text-muted-foreground">
-                        Protect your account with a second verification step
+                        {twoFactorEnabled 
+                          ? `Enabled (${twoFactorMethod?.toLowerCase()})` 
+                          : "Not enabled"}
                       </p>
                     </div>
-                    <Switch checked={false} />
+                    <Switch 
+                      checked={twoFactorEnabled} 
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          handle2FASetup();
+                        } else {
+                          handle2FADisable();
+                        }
+                      }}
+                      disabled={securityLoading}
+                    />
                   </div>
                 </div>
                 
@@ -983,21 +1205,21 @@ export default function UserSettings() {
                   <h3 className="font-medium mb-2">Verification Methods</h3>
                   <div className="space-y-3">
                     <div className="flex items-center">
-                      <input type="radio" id="sms" name="verification" className="mr-2" />
+                      <input type="radio" id="sms" name="verification" className="mr-2" checked={twoFactorMethod === 'SMS'} onChange={() => setSelectedMethod('SMS')} />
                       <Label htmlFor="sms">SMS Verification</Label>
                     </div>
                     <div className="flex items-center">
-                      <input type="radio" id="email" name="verification" className="mr-2" />
+                      <input type="radio" id="email" name="verification" className="mr-2" checked={twoFactorMethod === 'EMAIL'} onChange={() => setSelectedMethod('EMAIL')} />
                       <Label htmlFor="email">Email Verification</Label>
                     </div>
                     <div className="flex items-center">
-                      <input type="radio" id="app" name="verification" className="mr-2" />
+                      <input type="radio" id="app" name="verification" className="mr-2" checked={twoFactorMethod === '2FA_APP'} onChange={() => setSelectedMethod('2FA_APP')} />
                       <Label htmlFor="app">Authenticator App</Label>
                     </div>
                   </div>
                 </div>
                 
-                <Button>Set Up Two-Factor Authentication</Button>
+                <Button onClick={handle2FASetup}>Set Up Two-Factor Authentication</Button>
               </CardContent>
             </Card>
             
@@ -1009,47 +1231,31 @@ export default function UserSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 border rounded-md">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Current Device</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Chrome on Windows • New York, USA • Apr 9, 2025
-                      </p>
+                {sessions.map((session) => (
+                  <div key={session.id} className="p-4 border rounded-md">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">{session.device}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {session.browser} on {session.os} • {session.location || 'Unknown location'} • 
+                          {formatDistanceToNow(new Date(session.lastUsed), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {session.isCurrent ? (
+                        <Badge>Current Device</Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTerminateSession(session.id)}
+                          disabled={securityLoading}
+                        >
+                          {securityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Log Out"}
+                        </Button>
+                      )}
                     </div>
-                    <Button variant="ghost" size="sm" disabled>
-                      Current
-                    </Button>
                   </div>
-                </div>
-                
-                <div className="p-4 border rounded-md">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">iPhone 14 Pro</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Safari • New York, USA • Apr 8, 2025
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Log Out
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="p-4 border rounded-md">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">MacBook Pro</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Chrome • San Francisco, USA • Apr 7, 2025
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Log Out
-                    </Button>
-                  </div>
-                </div>
+                ))}
                 
                 <Button variant="outline">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -1084,6 +1290,34 @@ export default function UserSettings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Add 2FA verification modal */}
+      <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Scan QR Code</DialogTitle>
+            <DialogDescription>
+              Scan this QR code with your authenticator app
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4">
+            <QRCode value={qrCodeUrl} size={200} />
+            <div className="w-full space-y-2">
+              <Label>Enter verification code</Label>
+              <Input
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleVerify2FA} disabled={!verificationCode || securityLoading}>
+              {securityLoading ? "Verifying..." : "Verify Code"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

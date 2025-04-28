@@ -42,7 +42,7 @@ model User {
   loginCount   Int       @default(0)
 
   // Relations
-  ownedSubscriptions  Subscription[] @relation("SubscriptionOwner")
+  ownedSubscriptions  Subscription[] @relation("OwnerSubscriptions")
   memberSubscriptions Membership[]   @relation("SubscriptionMember")
   sentMessages        Message[]      @relation("MessageSender")
   receivedMessages    Message[]      @relation("MessageReceiver")
@@ -50,6 +50,13 @@ model User {
   reviews             Review[]       @relation("ReviewAuthor")
   receivedReviews     Review[]       @relation("ReviewTarget")
   transactions        Transaction[]
+
+  // 2FA
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorMethod  String? // '2FA_APP' | 'SMS' | 'EMAIL'
+
+  sessions Session[]
 }
 
 enum UserRole {
@@ -122,36 +129,64 @@ enum PaymentType {
 }
 
 model Subscription {
-  id        String    @id @default(cuid())
-  title     String
-  price     Float
-  cycle     CycleType
-  status    Status    @default(ACTIVE)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Subscription details
-  description     String?
-  maxMembers      Int?
-  currentMembers  Int        @default(1)
-  visibility      Visibility @default(PUBLIC)
-  autoRenew       Boolean    @default(true)
-  nextBillingDate DateTime?
-  cancelledAt     DateTime?
-
-  // Access credentials (encrypted)
-  accessEmail    String?
-  accessPassword String?
-  accessNotes    String?
+  id                String     @id @default(cuid())
+  title             String
+  price             Float
+  cycle             CycleType  @default(MONTHLY)
+  maxMembers        Int        @default(4)
+  description       String?
+  profileAssignment String?
+  visibility        Visibility @default(PUBLIC)
+  status            Status     @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   // Relations
-  owner        User          @relation("SubscriptionOwner", fields: [ownerId], references: [id])
-  ownerId      String
-  members      Membership[]
-  service      Service       @relation(fields: [serviceId], references: [id])
-  serviceId    String
-  transactions Transaction[]
-  reviews      Review[]
+  service            Service?           @relation(fields: [serviceId], references: [id])
+  serviceId          String?
+  owner              User               @relation("OwnerSubscriptions", fields: [ownerId], references: [id])
+  ownerId            String
+  members            Membership[]
+  accountCredentials AccountCredential?
+  Transaction        Transaction[]
+  Review             Review[]
+}
+
+model AccountCredential {
+  id             String       @id @default(cuid())
+  email          String
+  password       String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String       @unique
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Service {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  logo          String?
+  website       String?
+  category      String?
+  maxMembers    Int            @default(6)
+  plans         Plan[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Plan {
+  id         String    @id @default(cuid())
+  name       String
+  price      Float
+  cycle      CycleType @default(MONTHLY)
+  features   String[]
+  maxMembers Int       @default(6)
+  service    Service   @relation(fields: [serviceId], references: [id])
+  serviceId  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 enum CycleType {
@@ -207,50 +242,6 @@ enum MembershipStatus {
   PENDING
   SUSPENDED
   CANCELLED
-}
-
-model Service {
-  id          String          @id @default(cuid())
-  name        String
-  description String?
-  website     String?
-  logo        String?
-  category    ServiceCategory
-  maxMembers  Int?
-  termsUrl    String?
-  privacyUrl  String?
-  supportUrl  String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  // Service features
-  features         String[]
-  allowedCountries String[]
-
-  // Relations
-  subscriptions Subscription[]
-  plans         ServicePlan[]
-}
-
-enum ServiceCategory {
-  STREAMING
-  GAMING
-  PRODUCTIVITY
-  EDUCATION
-  MUSIC
-  FITNESS
-  OTHER
-}
-
-model ServicePlan {
-  id         String    @id @default(cuid())
-  service    Service   @relation(fields: [serviceId], references: [id])
-  serviceId  String
-  name       String
-  price      Float
-  cycle      CycleType
-  features   String[]
-  maxMembers Int
 }
 
 model Transaction {
@@ -343,4 +334,19 @@ enum NotificationType {
   MEMBER_LEFT
   SYSTEM
   REVIEW_RECEIVED
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  device    String // e.g., "iPhone 14 Pro", "MacBook Pro"
+  browser   String // e.g., "Chrome", "Safari"
+  os        String // e.g., "Windows", "iOS"
+  location  String? // e.g., "New York, USA"
+  ip        String?
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  isActive  Boolean  @default(true)
+  token     String   @unique // JWT token hash
 }

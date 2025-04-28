@@ -1,9 +1,9 @@
-import React from "react";
-import { z } from "zod";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import { Button } from "../../components/ui/button";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import {
   Form,
   FormControl,
@@ -12,7 +12,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "../../components/ui/form";
 import {
   Card,
   CardContent,
@@ -20,15 +20,15 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+} from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -36,102 +36,48 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "../../components/ui/dialog";
+import { Textarea } from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
 import { CalendarIcon, Info, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
+import { useSubscriptions } from "../../context/SubscriptionProvider";
+import { useServices } from "../../context/ServiceProvider";
+import { useToast } from "../../hooks/use-toast";
+import * as z from "zod";
 
 // Form validation schema
 const formSchema = z.object({
-  service: z.string().min(1, { message: "서비스를 선택해주세요" }),
-  plan: z.string().min(1, { message: "요금제를 선택해주세요" }),
-  totalSeats: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 2 && Number(val) <= 6, {
-    message: "공유 가능 자리 수는 2~6명 사이여야 합니다",
+  service: z.string().min(1, "Please select a service"),
+  plan: z.string().min(1, "Please select a plan"),
+  totalSeats: z.string().min(1, "Please enter number of seats"),
+  pricePerSeat: z.string().min(1, "Please enter price per seat"),
+  billingCycle: z.string().min(1, "Please select a billing cycle"),
+  accountEmail: z.string().email("Please enter a valid email"),
+  accountPassword: z.string().min(6, "Password must be at least 6 characters"),
+  profileAssignment: z.string().min(10, "Please provide profile assignment details"),
+  termsAgreed: z.boolean().refine(val => val === true, {
+    message: "You must agree to the terms and conditions",
   }),
-  pricePerSeat: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "자리당 가격을 입력해주세요",
-  }),
-  billingCycle: z.enum(["monthly", "annually"], {
-    required_error: "결제 주기를 선택해주세요",
-  }),
-  accountEmail: z.string().email({ message: "유효한 이메일 주소를 입력해주세요" }),
-  accountPassword: z.string().min(1, { message: "비밀번호를 입력해주세요" }),
-  profileAssignment: z.string().min(1, { message: "프로필 배정 방법을 설명해주세요" }),
-  termsAgreed: z.boolean().refine((val) => val === true, {
-    message: "서비스 이용약관에 동의해주세요",
-  }),
-  // Optional fields for custom entries
   customService: z.string().optional(),
   customPlan: z.string().optional(),
 });
 
-// Service options
-const services = [
-  { value: "netflix", label: "Netflix" },
-  { value: "disney", label: "Disney+" },
-  { value: "spotify", label: "Spotify" },
-  { value: "youtube", label: "YouTube Premium" },
-  { value: "apple", label: "Apple One" },
-  { value: "office", label: "Microsoft 365" },
-  { value: "adobe", label: "Adobe Creative Cloud" },
-  { value: "chatgpt", label: "ChatGPT Plus" },
-  { value: "notion", label: "Notion" },
-  { value: "custom", label: "Custom (Enter manually)" },
-];
-
-// Plan options by service
-const plansByService: Record<string, Array<{ value: string; label: string; price: number }>> = {
-  netflix: [
-    { value: "basic", label: "Basic", price: 9900 },
-    { value: "standard", label: "Standard", price: 13500 },
-    { value: "premium", label: "Premium", price: 17000 },
-  ],
-  disney: [
-    { value: "standard", label: "Standard", price: 9900 },
-    { value: "premium", label: "Premium", price: 13900 },
-  ],
-  spotify: [
-    { value: "individual", label: "Individual", price: 10900 },
-    { value: "duo", label: "Duo", price: 14900 },
-    { value: "family", label: "Family", price: 16900 },
-  ],
-  youtube: [
-    { value: "individual", label: "Individual", price: 14900 },
-    { value: "family", label: "Family", price: 22900 },
-  ],
-  apple: [
-    { value: "individual", label: "Individual", price: 13900 },
-    { value: "family", label: "Family", price: 19900 },
-  ],
-  office: [
-    { value: "personal", label: "Personal", price: 11900 },
-    { value: "family", label: "Family", price: 12400 },
-  ],
-  adobe: [
-    { value: "photography", label: "Photography", price: 13000 },
-    { value: "all-apps", label: "All Apps", price: 75000 },
-  ],
-  chatgpt: [
-    { value: "plus", label: "Plus", price: 20000 },
-    { value: "team", label: "Team", price: 30000 },
-  ],
-  notion: [
-    { value: "plus", label: "Plus", price: 10000 },
-    { value: "business", label: "Business", price: 20000 },
-  ],
-  custom: [
-    { value: "custom", label: "Custom", price: 0 },
-  ],
-};
-
 export default function CreateSubscription() {
-  const [selectedService, setSelectedService] = React.useState<string>("");
-  const [recommendedPrice, setRecommendedPrice] = React.useState<number>(0);
-  const [isDialogOpen, setIsDialogOpen] = React.useState<boolean>(false);
-  const [isCustomService, setIsCustomService] = React.useState<boolean>(false);
+  const { toast } = useToast();
+  const { createSubscription, isLoading } = useSubscriptions();
+  const { services, fetchServices } = useServices();
+  
+  const [selectedService, setSelectedService] = useState<string>("");
+  const [recommendedPrice, setRecommendedPrice] = useState<number>(0);
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [isCustomService, setIsCustomService] = useState<boolean>(false);
+  const [createdSubscription, setCreatedSubscription] = useState<any>(null);
+  
+  // Fetch services on component mount
+  React.useEffect(() => {
+    fetchServices();
+  }, []);
   
   // Initialize the form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -151,6 +97,12 @@ export default function CreateSubscription() {
     },
   });
   
+  // Get plans for selected service
+  const getPlansForService = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    return service?.plans || [];
+  };
+  
   // Handle service change
   const handleServiceChange = (value: string) => {
     form.setValue("service", value);
@@ -165,9 +117,11 @@ export default function CreateSubscription() {
   const handlePlanChange = (value: string) => {
     form.setValue("plan", value);
     
-    if (selectedService && plansByService[selectedService]) {
-      const selectedPlan = plansByService[selectedService].find(plan => plan.value === value);
-      if (selectedPlan && !isCustomService) {
+    if (selectedService && !isCustomService) {
+      const plans = getPlansForService(selectedService);
+      const selectedPlan = plans.find(plan => plan.id === value);
+      
+      if (selectedPlan) {
         const seats = parseInt(form.getValues("totalSeats") || "4");
         const recommended = Math.round(selectedPlan.price / seats * 0.85);
         setRecommendedPrice(recommended);
@@ -181,12 +135,11 @@ export default function CreateSubscription() {
     const seats = parseInt(e.target.value || "0");
     form.setValue("totalSeats", e.target.value);
     
-    if (selectedService && form.getValues("plan")) {
-      const selectedPlan = plansByService[selectedService].find(
-        plan => plan.value === form.getValues("plan")
-      );
+    if (selectedService && form.getValues("plan") && !isCustomService) {
+      const plans = getPlansForService(selectedService);
+      const selectedPlan = plans.find(plan => plan.id === form.getValues("plan"));
       
-      if (selectedPlan && !isCustomService && seats > 0) {
+      if (selectedPlan && seats > 0) {
         const recommended = Math.round(selectedPlan.price / seats * 0.85);
         setRecommendedPrice(recommended);
         form.setValue("pricePerSeat", recommended.toString());
@@ -194,9 +147,30 @@ export default function CreateSubscription() {
     }
   };
   
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    setIsDialogOpen(true);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const subscription = await createSubscription({
+        service: values.service,
+        customService: values.customService,
+        plan: values.plan,
+        customPlan: values.customPlan,
+        totalSeats: parseInt(values.totalSeats),
+        pricePerSeat: parseFloat(values.pricePerSeat),
+        billingCycle: values.billingCycle,
+        accountEmail: values.accountEmail,
+        accountPassword: values.accountPassword,
+        profileAssignment: values.profileAssignment,
+      });
+      
+      setCreatedSubscription(subscription);
+      setIsDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create subscription",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -241,10 +215,11 @@ export default function CreateSubscription() {
                               </FormControl>
                               <SelectContent>
                                 {services.map((service) => (
-                                  <SelectItem key={service.value} value={service.value}>
-                                    {service.label}
+                                  <SelectItem key={service.id} value={service.id}>
+                                    {service.name}
                                   </SelectItem>
                                 ))}
+                                <SelectItem value="custom">Custom Service</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -258,7 +233,7 @@ export default function CreateSubscription() {
                           name="customService"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Custom Input</FormLabel>
+                              <FormLabel>Custom Service Name</FormLabel>
                               <FormControl>
                                 <Input {...field} placeholder="Enter service name" />
                               </FormControl>
@@ -285,13 +260,15 @@ export default function CreateSubscription() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {selectedService &&
-                                  plansByService[selectedService]?.map((plan) => (
-                                    <SelectItem key={plan.value} value={plan.value}>
-                                      {plan.label}
-                                      {!isCustomService && ` ($${plan.price.toLocaleString()})`}
+                                {!isCustomService && selectedService && 
+                                  getPlansForService(selectedService).map((plan) => (
+                                    <SelectItem key={plan.id} value={plan.id}>
+                                      {plan.name} (${plan.price.toLocaleString()})
                                     </SelectItem>
                                   ))}
+                                {isCustomService && (
+                                  <SelectItem value="custom">Custom Plan</SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -299,13 +276,13 @@ export default function CreateSubscription() {
                         )}
                       />
                       
-                      {selectedService === "custom" && form.watch("plan") === "custom" && (
+                      {isCustomService && form.watch("plan") === "custom" && (
                         <FormField
                           control={form.control}
                           name="customPlan"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Custom Plan</FormLabel>
+                              <FormLabel>Custom Plan Name</FormLabel>
                               <FormControl>
                                 <Input {...field} placeholder="Enter plan name" />
                               </FormControl>
@@ -485,7 +462,9 @@ export default function CreateSubscription() {
                 </div>
                 
                 <CardFooter className="flex justify-end px-0 pb-0">
-                  <Button type="submit">Create Subscription</Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Creating..." : "Create Subscription"}
+                  </Button>
                 </CardFooter>
               </form>
             </Form>
@@ -512,6 +491,18 @@ export default function CreateSubscription() {
                 Other users can now join your subscription. You can review and approve subscription requests as they come in.
               </p>
             </div>
+            
+            {createdSubscription && (
+              <div className="rounded-md border p-4">
+                <h4 className="font-medium mb-2">Subscription Details</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="font-medium">Service:</span> {createdSubscription.title}</p>
+                  <p><span className="font-medium">Price:</span> ${createdSubscription.price}</p>
+                  <p><span className="font-medium">Billing:</span> {createdSubscription.cycle.toLowerCase()}</p>
+                  <p><span className="font-medium">Max Members:</span> {createdSubscription.maxMembers}</p>
+                </div>
+              </div>
+            )}
             
             <div className="flex items-start space-x-2">
               <Info className="h-5 w-5 text-blue-500 mt-0.5" />

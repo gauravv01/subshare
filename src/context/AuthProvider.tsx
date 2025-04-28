@@ -4,7 +4,7 @@ import axiosInstance from '../lib/axiosInstance';
 interface User {
   id: string;
   email: string;
-  role: "unified" | "admin";
+  role: "UNIFIED" | "ADMIN";
 }
 
 interface AuthContextType {
@@ -57,6 +57,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('user');
     setUser(null);
   };
+
+  const updatePassword = async (oldPassword: string, newPassword: string) => {
+    try {
+      const response = await axiosInstance.put('/auth/password', { oldPassword, newPassword });
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', response.data.token);
+      setUser(response.data.user);
+    } catch (error) {
+      throw new Error('Password update failed');
+    }
+  };
+  
 
   return (
     <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
