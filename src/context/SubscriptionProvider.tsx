@@ -12,10 +12,20 @@ interface Subscription {
   ownerId: string;
   visibility: 'PUBLIC' | 'PRIVATE' | 'INVITE_ONLY';
   status: 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+  owner: {
+    id: string;
+    name: string;
+    avatar: string;
+    country: string;
+    receivedReviews: Array<{
+      rating: number;
+    }>;
+  };
   service: {
     id: string;
     name: string;
     logo: string;
+    category: string;
   };
   members: Array<{
     id: string;

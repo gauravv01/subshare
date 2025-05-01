@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
-  import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -32,38 +32,86 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Wallet
+  Wallet,
+  Loader2
 } from "lucide-react";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { useToast } from "../hooks/use-toast";
-
-// Import the sample data to use for listings
-import { sampleListings, type AccountListing, type ServiceType } from "./Connect";
+import { useSubscriptions } from "../context/SubscriptionProvider";
+import { useMembers } from "../context/MemberProvider";
+import { useTransactions } from "../context/TransactionProvider";
+import { useAuth } from "../context/AuthProvider";
+import { format } from "date-fns";
 
 type PaymentMethod = "credit_card" | "paypal" | "google_pay" | "apple_pay";
 
 export default function ListingDetails() {
   const { id } = useParams();
   const { toast } = useToast();
-  const [listing, setListing] = useState<AccountListing | undefined>(sampleListings.find((l: AccountListing) => l.id === id));
+  const { user } = useAuth();
+  const { subscriptions, fetchSubscriptions, isLoading: subscriptionsLoading } = useSubscriptions();
+  const { fetchMembers, isLoading: membersLoading } = useMembers();
+  const { createPayment, isLoading: paymentsLoading } = useTransactions();
+  
+  const [subscription, setSubscription] = useState<any | null>(null);
   const [seatsToBook, setSeatsToBook] = useState(1);
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("credit_card");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
+  // Fetch subscription data
   useEffect(() => {
-    // In a real app, you would fetch the listing details from an API
-    const foundListing = sampleListings.find((l: AccountListing) => l.id === id);
-    setListing(foundListing);
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        await fetchSubscriptions();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load subscription data. Please refresh the page.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Reset state when listing changes
-    setSeatsToBook(1);
+    loadData();
   }, [id]);
+  
+  // Set current subscription when data is loaded
+  useEffect(() => {
+    if (subscriptions.length > 0 && id) {
+      const foundSubscription = subscriptions.find(sub => sub.id === id);
+      setSubscription(foundSubscription);
+      
+      // Reset state when subscription changes
+      if (foundSubscription) {
+        setSeatsToBook(1);
+      }
+    }
+  }, [id, subscriptions]);
 
-  if (!listing) {
+  if (isLoading || subscriptionsLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg text-muted-foreground">Loading subscription details...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!subscription) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -71,12 +119,12 @@ export default function ListingDetails() {
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Listing Not Found</h1>
             <p className="mb-6">The subscription listing you're looking for doesn't exist or has been removed.</p>
-              <NavLink to="/connect">
+            <NavLink to="/connect">
               <Button>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Listings
               </Button>
-              </NavLink>
+            </NavLink>
           </div>
         </main>
         <Footer />
@@ -85,27 +133,29 @@ export default function ListingDetails() {
   }
 
   // Get service color
-  const getServiceColor = (service: string) => {
+  const getServiceColor = (service: any) => {
     const colors: Record<string, string> = {
-      netflix: "bg-red-100 text-red-600",
-      spotify: "bg-green-100 text-green-600",
-      chatgpt: "bg-blue-100 text-blue-600",
-      disney: "bg-purple-100 text-purple-600",
-      office: "bg-indigo-100 text-indigo-600",
-      hbo: "bg-purple-100 text-purple-600",
-      hulu: "bg-green-100 text-green-600",
-      youtube: "bg-red-100 text-red-600",
-      other: "bg-gray-100 text-gray-600"
+      'STREAMING': "bg-red-100 text-red-600",
+      'GAMING': "bg-purple-100 text-purple-600",
+      'PRODUCTIVITY': "bg-blue-100 text-blue-600",
+      'EDUCATION': "bg-green-100 text-green-600",
+      'MUSIC': "bg-indigo-100 text-indigo-600",
+      'FITNESS': "bg-orange-100 text-orange-600",
+      'OTHER': "bg-gray-100 text-gray-600"
     };
     
-    return colors[service] || "bg-gray-100 text-gray-600";
+    return colors[service?.category] || "bg-gray-100 text-gray-600";
+  };
+  
+  // Calculate available seats
+  const availableSeats = subscription.maxMembers - subscription.members.length;
+  
+  // Calculate price per seat
+  const calculatePricePerSeat = () => {
+    return subscription.price / subscription.maxMembers;
   };
   
   // Calculate total price
-  const calculatePricePerSeat = () => {
-    return listing.pricePerSeat;
-  };
-  
   const calculateTotalPrice = () => {
     return calculatePricePerSeat() * seatsToBook;
   };
@@ -122,13 +172,22 @@ export default function ListingDetails() {
   
   // Handle seat selection
   const handleSeatChange = (value: number) => {
-    if (value >= 1 && value <= listing.availableSeats) {
+    if (value >= 1 && value <= availableSeats) {
       setSeatsToBook(value);
     }
   };
   
   // Handle checkout flow
   const handleCheckoutClick = () => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to book a subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsCheckoutDialogOpen(true);
   };
   
@@ -137,15 +196,31 @@ export default function ListingDetails() {
     setIsPaymentDialogOpen(true);
   };
   
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     setIsProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      // First join the subscription
+      await fetchMembers(subscription.id);
+      
+      // Then create a payment record
+      await createPayment({
+        amount: calculateGrandTotal(),
+        subscriptionId: subscription.id,
+        paymentMethodId: "default" // This would be the actual payment method ID in a real app
+      });
+      
       setIsPaymentDialogOpen(false);
       setIsConfirmationDialogOpen(true);
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Payment Failed",
+        description: "There was an error processing your payment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   const handleCloseConfirmation = () => {
@@ -157,6 +232,13 @@ export default function ListingDetails() {
       description: "You've successfully booked a seat on this subscription.",
     });
   };
+
+  // Calculate owner rating
+  const ownerRating = subscription.owner?.receivedReviews?.reduce(
+    (sum: number, review: any) => sum + review.rating, 0
+  ) / (subscription.owner?.receivedReviews?.length || 1) || 0;
+  
+  const reviewCount = subscription.owner?.receivedReviews?.length || 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -177,49 +259,61 @@ export default function ListingDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getServiceColor(listing.service)}`}>
-                {listing.serviceDisplay.charAt(0)}
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${getServiceColor(subscription.service)}`}>
+                {subscription.service?.logo ? (
+                  <img 
+                    src={subscription.service.logo} 
+                    alt={subscription.service.name} 
+                    className="w-8 h-8"
+                  />
+                ) : (
+                  subscription.title.charAt(0)
+                )}
               </div>
               <div className="ml-3">
-                <h1 className="text-2xl font-bold">{listing.serviceDisplay} {listing.planDisplay}</h1>
+                <h1 className="text-2xl font-bold">{subscription.title}</h1>
                 <div className="flex items-center mt-1">
-                  <Badge variant="outline" className={`mr-2 ${listing.billingCycle === "monthly" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"}`}>
-                    {listing.billingCycle === "monthly" ? "Monthly" : "Yearly"}
+                  <Badge variant="outline" className={`mr-2 ${subscription.cycle === "MONTHLY" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"}`}>
+                    {subscription.cycle.charAt(0) + subscription.cycle.slice(1).toLowerCase()}
                   </Badge>
                   <Badge variant="outline" className="mr-2">
-                    {listing.category.charAt(0).toUpperCase() + listing.category.slice(1)}
+                    {subscription.service?.category || 'Other'}
                   </Badge>
                   <Badge variant="outline">
-                    {listing.country}
+                    {subscription.owner?.country || 'Global'}
                   </Badge>
                 </div>
               </div>
             </div>
             
-            <p className="text-gray-700 mb-4">{listing.description}</p>
+            <p className="text-gray-700 mb-4">{subscription.description || 'No description provided'}</p>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg">
                 <Users className="h-5 w-5 text-primary mb-1" />
-                <div className="text-sm font-medium">{listing.availableSeats} of {listing.totalSeats}</div>
+                <div className="text-sm font-medium">{availableSeats} of {subscription.maxMembers}</div>
                 <div className="text-xs text-gray-500">Available Seats</div>
               </div>
               
               <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg">
                 <DollarSign className="h-5 w-5 text-primary mb-1" />
-                <div className="text-sm font-medium">${listing.pricePerSeat.toFixed(2)}</div>
+                <div className="text-sm font-medium">${calculatePricePerSeat().toFixed(2)}</div>
                 <div className="text-xs text-gray-500">Per Seat/Month</div>
               </div>
               
               <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg">
                 <Star className="h-5 w-5 text-yellow-400 mb-1" />
-                <div className="text-sm font-medium">{listing.accountHolder.rating} ({listing.accountHolder.reviews})</div>
+                <div className="text-sm font-medium">{ownerRating.toFixed(1)} ({reviewCount})</div>
                 <div className="text-xs text-gray-500">Host Rating</div>
               </div>
               
               <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg">
                 <CalendarDays className="h-5 w-5 text-primary mb-1" />
-                <div className="text-sm font-medium">{new Date(listing.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                <div className="text-sm font-medium">
+                  {subscription.createdAt 
+                    ? format(new Date(subscription.createdAt), 'MMM d, yyyy')
+                    : 'Recently added'}
+                </div>
                 <div className="text-xs text-gray-500">Start Date</div>
               </div>
             </div>
@@ -235,54 +329,62 @@ export default function ListingDetails() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-medium mb-2">Subscription Plan</h3>
-                    <p>{listing.serviceDisplay} - {listing.planDisplay}</p>
+                    <p>{subscription.service?.name || 'Custom'} - {subscription.title}</p>
                   </div>
                   
                   <div>
                     <h3 className="font-medium mb-2">Billing Cycle</h3>
-                    <p>{listing.billingCycle === "monthly" ? "Monthly subscription" : "Annual subscription"}</p>
+                    <p>{subscription.cycle.charAt(0) + subscription.cycle.slice(1).toLowerCase()} subscription</p>
                   </div>
                   
                   <div>
                     <h3 className="font-medium mb-2">Start Date</h3>
-                    <p>Access starts on {new Date(listing.startDate).toLocaleDateString()}</p>
+                    <p>Access starts immediately after payment</p>
                   </div>
                   
                   <div>
                     <h3 className="font-medium mb-2">Country</h3>
-                    <p>{listing.country} (content may vary by region)</p>
+                    <p>{subscription.owner?.country || 'Global'} (content may vary by region)</p>
                   </div>
                 </div>
               </TabsContent>
               
               <TabsContent value="features" className="p-4 border rounded-md mt-2">
-                <ul className="space-y-2">
-                  {listing.features.map((feature, index) => (
-                    <li key={index} className="flex items-start">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                {subscription.service?.features?.length > 0 ? (
+                  <ul className="space-y-2">
+                    {subscription.service.features.map((feature: string, index: number) => (
+                      <li key={index} className="flex items-start">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">No features listed for this subscription.</p>
+                )}
               </TabsContent>
               
               <TabsContent value="host" className="p-4 border rounded-md mt-2">
                 <div className="space-y-4">
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                      <span>{listing.accountHolder.name.charAt(0)}</span>
+                      {subscription.owner?.avatar ? (
+                        <img 
+                          src={subscription.owner.avatar} 
+                          alt={subscription.owner.name} 
+                          className="w-10 h-10 rounded-full"
+                        />
+                      ) : (
+                        <span>{subscription.owner?.name?.charAt(0) || '?'}</span>
+                      )}
                     </div>
                     <div>
-                      <h3 className="font-medium">{listing.accountHolder.name}</h3>
+                      <h3 className="font-medium">{subscription.owner?.name || 'Anonymous'}</h3>
                       <div className="flex items-center text-sm text-gray-500">
                         <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                        <span>{listing.accountHolder.rating} ({listing.accountHolder.reviews} reviews)</span>
+                        <span>{ownerRating.toFixed(1)} ({reviewCount} reviews)</span>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm">Member since {listing.accountHolder.memberSince}</p>
                   </div>
                   
                   <Separator />
@@ -323,16 +425,16 @@ export default function ListingDetails() {
                     <div className="bg-gray-50 p-3 rounded-md">
                       <div className="flex justify-between mb-2">
                         <span className="text-gray-600">Price per seat</span>
-                        <span className="font-medium">${listing.pricePerSeat.toFixed(2)}/month</span>
+                        <span className="font-medium">${calculatePricePerSeat().toFixed(2)}/month</span>
                       </div>
-                      {listing.billingCycle === "yearly" && (
+                      {subscription.cycle === "YEARLY" && (
                         <div className="text-xs text-gray-500 mb-2">
-                          Billed as ${(listing.pricePerSeat * 12).toFixed(2)} annually
+                          Billed as ${(calculatePricePerSeat() * 12).toFixed(2)} annually
                         </div>
                       )}
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Available seats</span>
-                        <span className="font-medium">{listing.availableSeats} of {listing.totalSeats}</span>
+                        <span className="font-medium">{availableSeats} of {subscription.maxMembers}</span>
                       </div>
                     </div>
                   </div>
@@ -353,7 +455,7 @@ export default function ListingDetails() {
                         variant="outline"
                         size="icon"
                         onClick={() => handleSeatChange(seatsToBook + 1)}
-                        disabled={seatsToBook >= listing.availableSeats}
+                        disabled={seatsToBook >= availableSeats}
                       >
                         +
                       </Button>
@@ -376,14 +478,18 @@ export default function ListingDetails() {
                       <span>${calculateGrandTotal().toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {listing.billingCycle === "monthly" ? "Billed monthly" : "Billed annually"}
+                      {subscription.cycle === "MONTHLY" ? "Billed monthly" : "Billed annually"}
                     </div>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col">
-                <Button className="w-full mb-3" onClick={handleCheckoutClick}>
-                  Book Now
+                <Button 
+                  className="w-full mb-3" 
+                  onClick={handleCheckoutClick}
+                  disabled={availableSeats === 0}
+                >
+                  {availableSeats === 0 ? "No Seats Available" : "Book Now"}
                 </Button>
                 <div className="w-full flex items-center justify-center text-xs text-gray-500">
                   <Shield className="h-3 w-3 mr-1" />
@@ -431,13 +537,21 @@ export default function ListingDetails() {
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-md">
                 <div className="flex items-center mb-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getServiceColor(listing.service)}`}>
-                    {listing.serviceDisplay.charAt(0)}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getServiceColor(subscription.service)}`}>
+                    {subscription.service?.logo ? (
+                      <img 
+                        src={subscription.service.logo} 
+                        alt={subscription.service.name} 
+                        className="w-6 h-6"
+                      />
+                    ) : (
+                      subscription.title.charAt(0)
+                    )}
                   </div>
                   <div className="ml-3">
-                    <h3 className="font-medium">{listing.serviceDisplay} {listing.planDisplay}</h3>
+                    <h3 className="font-medium">{subscription.title}</h3>
                     <p className="text-sm text-gray-500">
-                      {seatsToBook} seat{seatsToBook > 1 ? 's' : ''} in a {listing.totalSeats}-person share
+                      {seatsToBook} seat{seatsToBook > 1 ? 's' : ''} in a {subscription.maxMembers}-person share
                     </p>
                   </div>
                 </div>
@@ -447,7 +561,7 @@ export default function ListingDetails() {
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Price per seat</span>
-                    <span>${listing.pricePerSeat.toFixed(2)}/month</span>
+                    <span>${calculatePricePerSeat().toFixed(2)}/month</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Number of seats</span>
@@ -469,7 +583,7 @@ export default function ListingDetails() {
                     <span>${calculateGrandTotal().toFixed(2)}</span>
                   </div>
                   <div className="text-xs text-gray-500">
-                    {listing.billingCycle === "monthly" ? "Billed monthly" : "Billed annually"}
+                    {subscription.cycle === "MONTHLY" ? "Billed monthly" : "Billed annually"}
                   </div>
                 </div>
               </div>
@@ -479,7 +593,7 @@ export default function ListingDetails() {
                 <ul className="text-sm space-y-1">
                   <li className="flex items-start">
                     <Clock className="h-4 w-4 text-primary mr-2 flex-shrink-0 mt-0.5" />
-                    <span>Your access will be active from {new Date(listing.startDate).toLocaleDateString()}</span>
+                    <span>Your access will be active immediately after payment</span>
                   </li>
                   <li className="flex items-start">
                     <Info className="h-4 w-4 text-primary mr-2 flex-shrink-0 mt-0.5" />
@@ -608,7 +722,7 @@ export default function ListingDetails() {
               <div className="bg-green-50 border border-green-100 p-4 rounded-md">
                 <h3 className="font-medium text-green-700 mb-2">Booking Confirmed</h3>
                 <p className="text-sm text-green-600">
-                  You've successfully booked {seatsToBook} seat{seatsToBook > 1 ? 's' : ''} on the {listing.serviceDisplay} {listing.planDisplay} subscription.
+                  You've successfully booked {seatsToBook} seat{seatsToBook > 1 ? 's' : ''} on the {subscription.title} subscription.
                 </p>
               </div>
               
@@ -621,7 +735,7 @@ export default function ListingDetails() {
                   </li>
                   <li className="flex items-start">
                     <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs mr-2">2</span>
-                    <span>Your account holder will share access credentials before {new Date(listing.startDate).toLocaleDateString()}</span>
+                    <span>Your account holder will share access credentials shortly</span>
                   </li>
                   <li className="flex items-start">
                     <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs mr-2">3</span>
@@ -637,11 +751,10 @@ export default function ListingDetails() {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsConfirmationDialogOpen(false);
-              window.location.href = "/co-subscriber/my-subscriptions";
-            }}>
-              View My Subscriptions
+            <Button variant="outline" asChild>
+              <Link to="/dashboard">
+                View My Subscriptions
+              </Link>
             </Button>
             <Button onClick={handleCloseConfirmation}>
               Done

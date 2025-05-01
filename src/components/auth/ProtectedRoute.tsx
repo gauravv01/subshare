@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate,Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthProvider";
 
 interface ProtectedRouteProps {
@@ -20,7 +20,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && user?.role && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/dashboard" />;
+    return <Outlet />
   }
 
   return <>{children}</>;

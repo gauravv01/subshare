@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import React, { useState, useEffect } from "react";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import { Card } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Textarea } from "../../components/ui/textarea";
 import { 
   MessageSquare, 
   Send, 
   Search, 
-  MoreHorizontal, 
+  User, 
   ChevronLeft, 
-  Paperclip, 
-  User
+  MoreHorizontal, 
+  Paperclip,
+  Loader2
 } from "lucide-react";
 import { 
   Dialog, 
@@ -21,307 +22,299 @@ import {
   DialogHeader, 
   DialogTitle,
   DialogFooter
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-type Message = {
-  id: string;
-  content: string;
-  sender: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  sentAt: string;
-  isRead: boolean;
-};
-
-type Conversation = {
-  id: string;
-  participant: {
-    id: string;
-    name: string;
-    avatar?: string;
-    subscription?: string;
-  };
-  lastMessage: Message;
-  unreadCount: number;
-};
+} from "../../components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { useIsMobile } from "../../hooks/use-mobile";
+import { useMessages } from "../../context/MessageProvider";
+import { useSubscriptions } from "../../context/SubscriptionProvider";
+import { useMembers } from "../../context/MemberProvider";
+import { useToast } from "../../hooks/use-toast";
+import { format, formatDistanceToNow, isToday, isYesterday, isThisWeek } from "date-fns";
 
 export default function Messages() {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const { 
+    messages, 
+    sendMessage, 
+    markAsRead, 
+    fetchMessages, 
+    isLoading: messagesLoading 
+  } = useMessages();
+  const { 
+    subscriptions, 
+    fetchSubscriptions, 
+    isLoading: subscriptionsLoading 
+  } = useSubscriptions();
+  const { 
+    members, 
+    fetchMembers, 
+    isLoading: membersLoading 
+  } = useMembers();
+  
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<string>("");
+  const [selectedRecipient, setSelectedRecipient] = useState<string>("");
+  const [newMessageText, setNewMessageText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Sample conversations data
-  const conversations: Conversation[] = [
-    {
-      id: "1",
-      participant: {
-        id: "101",
-        name: "Emma Johnson",
-        subscription: "Netflix Premium"
-      },
-      lastMessage: {
-        id: "m1",
-        content: "Hi, I'm interested in joining your Netflix subscription. Is there still a spot available?",
-        sender: {
-          id: "101",
-          name: "Emma Johnson"
-        },
-        sentAt: "2025-04-03T14:30:00",
-        isRead: false
-      },
-      unreadCount: 1
-    },
-    {
-      id: "2",
-      participant: {
-        id: "102",
-        name: "Alex Chen",
-        subscription: "Spotify Family"
-      },
-      lastMessage: {
-        id: "m2",
-        content: "Thanks for accepting me to your Spotify plan! How do I set up my profile?",
-        sender: {
-          id: "102",
-          name: "Alex Chen"
-        },
-        sentAt: "2025-04-02T09:15:00",
-        isRead: true
-      },
-      unreadCount: 0
-    },
-    {
-      id: "3",
-      participant: {
-        id: "103",
-        name: "Michael Lee",
-        subscription: "Disney+ Premium"
-      },
-      lastMessage: {
-        id: "m3",
-        content: "I've sent the payment for this month. Please check when you have time.",
-        sender: {
-          id: "103",
-          name: "Michael Lee"
-        },
-        sentAt: "2025-04-01T18:45:00",
-        isRead: true
-      },
-      unreadCount: 0
-    },
-    {
-      id: "4",
-      participant: {
-        id: "104",
-        name: "Sarah Williams",
-        subscription: "Netflix Premium"
-      },
-      lastMessage: {
-        id: "m4",
-        content: "Could you please resend the login details? I'm having trouble accessing the account.",
-        sender: {
-          id: "104",
-          name: "Sarah Williams"
-        },
-        sentAt: "2025-03-30T12:20:00",
-        isRead: false
-      },
-      unreadCount: 2
-    },
-    {
-      id: "5",
-      participant: {
-        id: "105",
-        name: "David Kim",
-        subscription: "Netflix Premium"
-      },
-      lastMessage: {
-        id: "m5",
-        content: "I'm going to be late with the payment this month, hope that's ok.",
-        sender: {
-          id: "105",
-          name: "David Kim"
-        },
-        sentAt: "2025-03-28T10:05:00",
-        isRead: true
-      },
-      unreadCount: 0
+  // Group messages by conversation
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversationMessages, setConversationMessages] = useState<Record<string, any[]>>({});
+  
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        await Promise.all([
+          fetchMessages(),
+          fetchSubscriptions()
+        ]);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load messages. Please refresh the page.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+  
+  // Fetch members when a subscription is selected
+  useEffect(() => {
+    if (selectedSubscription) {
+      fetchMembers(selectedSubscription);
     }
-  ];
+  }, [selectedSubscription]);
   
-  // Sample messages data
-  const messages: { [key: string]: Message[] } = {
-    "1": [
-      {
-        id: "m1-1",
-        content: "Hi, I'm interested in joining your Netflix subscription. Is there still a spot available?",
-        sender: {
-          id: "101",
-          name: "Emma Johnson"
-        },
-        sentAt: "2025-04-03T14:30:00",
-        isRead: false
-      }
-    ],
-    "2": [
-      {
-        id: "m2-1",
-        content: "Hi Alex, welcome to my Spotify family plan!",
-        sender: {
-          id: "current-user",
-          name: "Me"
-        },
-        sentAt: "2025-04-02T09:10:00",
-        isRead: true
-      },
-      {
-        id: "m2-2",
-        content: "Thanks for accepting me to your Spotify plan! How do I set up my profile?",
-        sender: {
-          id: "102",
-          name: "Alex Chen"
-        },
-        sentAt: "2025-04-02T09:15:00",
-        isRead: true
-      }
-    ],
-    "3": [
-      {
-        id: "m3-1",
-        content: "Hi Michael, the payment is due on the 1st of every month.",
-        sender: {
-          id: "current-user",
-          name: "Me"
-        },
-        sentAt: "2025-04-01T17:30:00",
-        isRead: true
-      },
-      {
-        id: "m3-2",
-        content: "I've sent the payment for this month. Please check when you have time.",
-        sender: {
-          id: "103",
-          name: "Michael Lee"
-        },
-        sentAt: "2025-04-01T18:45:00",
-        isRead: true
-      }
-    ],
-    "4": [
-      {
-        id: "m4-1",
-        content: "Here are your login details for Netflix: username: sarah@example.com password: ********",
-        sender: {
-          id: "current-user",
-          name: "Me"
-        },
-        sentAt: "2025-03-29T14:20:00",
-        isRead: true
-      },
-      {
-        id: "m4-2",
-        content: "Thank you! I'll try it right away.",
-        sender: {
-          id: "104",
-          name: "Sarah Williams"
-        },
-        sentAt: "2025-03-29T14:25:00",
-        isRead: true
-      },
-      {
-        id: "m4-3",
-        content: "Could you please resend the login details? I'm having trouble accessing the account.",
-        sender: {
-          id: "104",
-          name: "Sarah Williams"
-        },
-        sentAt: "2025-03-30T12:20:00",
-        isRead: false
-      },
-      {
-        id: "m4-4",
-        content: "Netflix says my password is incorrect. Can you reset it?",
-        sender: {
-          id: "104",
-          name: "Sarah Williams"
-        },
-        sentAt: "2025-03-30T15:45:00",
-        isRead: false
-      }
-    ],
-    "5": [
-      {
-        id: "m5-1",
-        content: "I'm going to be late with the payment this month, hope that's ok.",
-        sender: {
-          id: "105",
-          name: "David Kim"
-        },
-        sentAt: "2025-03-28T10:05:00",
-        isRead: true
-      },
-      {
-        id: "m5-2",
-        content: "That's fine, just let me know when you can make the payment.",
-        sender: {
-          id: "current-user",
-          name: "Me"
-        },
-        sentAt: "2025-03-28T10:10:00",
-        isRead: true
-      }
-    ]
-  };
+  // Process messages into conversations
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Group messages by conversation partner
+      const messagesByConversation: Record<string, any[]> = {};
+      const conversationMap = new Map();
+      
+      messages.forEach(message => {
+        const partnerId = message.senderId === "current-user" ? message.receiverId : message.senderId;
+        const conversationId = partnerId;
+        
+        if (!messagesByConversation[conversationId]) {
+          messagesByConversation[conversationId] = [];
+        }
+        
+        messagesByConversation[conversationId].push(message);
+        
+        // Update conversation info
+        if (!conversationMap.has(conversationId)) {
+          const partner = message.senderId === "current-user" ? message.receiver : message.sender;
+          
+          conversationMap.set(conversationId, {
+            id: conversationId,
+            participant: {
+              id: partner.id,
+              name: partner.name,
+              avatar: partner.avatar,
+              subscription: "Member"
+            },
+            lastMessage: message,
+            unreadCount: message.senderId !== "current-user" && !message.read ? 1 : 0
+          });
+        } else {
+          const conversation = conversationMap.get(conversationId);
+          
+          // Update last message if this one is newer
+          if (new Date(message.createdAt) > new Date(conversation.lastMessage.createdAt)) {
+            conversation.lastMessage = message;
+          }
+          
+          // Update unread count
+          if (message.senderId !== "current-user" && !message.read) {
+            conversation.unreadCount += 1;
+          }
+        }
+      });
+      
+      // Sort messages in each conversation by date
+      Object.keys(messagesByConversation).forEach(conversationId => {
+        messagesByConversation[conversationId].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
+      
+      // Sort conversations by last message date
+      const sortedConversations = Array.from(conversationMap.values()).sort((a, b) => 
+        new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+      );
+      
+      setConversations(sortedConversations);
+      setConversationMessages(messagesByConversation);
+    }
+  }, [messages]);
   
+  // Filter conversations based on search and active tab
   const filteredConversations = conversations.filter(conversation => {
-    const matchesSearch = conversation.participant.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (conversation.participant.subscription && conversation.participant.subscription.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = searchQuery === "" || 
+      conversation.participant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conversation.lastMessage.content.toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (activeTab === "all") {
-      return matchesSearch;
-    } else if (activeTab === "unread") {
-      return matchesSearch && conversation.unreadCount > 0;
-    }
+    const matchesTab = activeTab === "all" || (activeTab === "unread" && conversation.unreadCount > 0);
     
-    return matchesSearch;
+    return matchesSearch && matchesTab;
   });
   
-  const handleSendMessage = () => {
+  // Mark messages as read when conversation is selected
+  useEffect(() => {
+    if (selectedConversation && conversationMessages[selectedConversation]) {
+      const unreadMessages = conversationMessages[selectedConversation].filter(
+        message => message.senderId !== "current-user" && !message.read
+      );
+      
+      unreadMessages.forEach(message => {
+        markAsRead(message.id);
+      });
+      
+      // Update unread count in conversations
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === selectedConversation 
+            ? { ...conv, unreadCount: 0 } 
+            : conv
+        )
+      );
+    }
+  }, [selectedConversation, conversationMessages]);
+  
+  const handleSendMessage = async () => {
     if (messageInput.trim() === "" || !selectedConversation) return;
     
-    // In a real app, this would send the message to the API
-    console.log(`Sending message to conversation ${selectedConversation}: ${messageInput}`);
+    try {
+      // Make sure the receiverId exists in the database
+      const receiverId = selectedConversation;
+      
+      // Check if this is a valid user ID before sending
+      const recipient = members.find(m => m.userId === receiverId);
+      
+      if (!recipient) {
+        toast({
+          title: "Error",
+          description: "Invalid recipient. Please select a valid user.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      await sendMessage(
+        receiverId,
+        messageInput,
+        'TEXT'
+      );
+      
+      // Clear the input
+      setMessageInput("");
+      
+      // Refresh messages
+      await fetchMessages();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleSendNewMessage = async () => {
+    if (!selectedSubscription || !selectedRecipient || !newMessageText.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all fields to send a message.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Clear the input
-    setMessageInput("");
+    try {
+      // Make sure the receiverId exists in the database
+      if (selectedRecipient === 'all') {
+        // Send to all members of the subscription
+        const subscriptionMembers = members.filter(m => 
+          m.subscriptionId === selectedSubscription && 
+          m.userId !== 'current-user' // Don't send to yourself
+        );
+        
+        if (subscriptionMembers.length === 0) {
+          toast({
+            title: "No Recipients",
+            description: "There are no members to send messages to.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Send message to each member
+        await Promise.all(
+          subscriptionMembers.map(member => 
+            sendMessage(member.userId, newMessageText, 'TEXT')
+          )
+        );
+      } else {
+        // Send to a specific recipient
+        await sendMessage(
+          selectedRecipient,
+          newMessageText,
+          'TEXT'
+        );
+      }
+      
+      toast({
+        title: "Message Sent",
+        description: "Your message has been sent successfully.",
+      });
+      
+      // Clear form and close dialog
+      setSelectedSubscription("");
+      setSelectedRecipient("");
+      setNewMessageText("");
+      setNewMessageOpen(false);
+      
+      // Refresh messages
+      await fetchMessages();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays === 1) {
+    if (isToday(date)) {
+      return format(date, 'h:mm a');
+    } else if (isYesterday(date)) {
       return 'Yesterday';
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' });
+    } else if (isThisWeek(date)) {
+      return format(date, 'EEEE'); // Day name
     } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return format(date, 'MMM d');
     }
   };
 
@@ -332,6 +325,19 @@ export default function Messages() {
   const handleBackToList = () => {
     setSelectedConversation(null);
   };
+  
+  if (isLoading || messagesLoading || subscriptionsLoading) {
+    return (
+      <DashboardLayout userRole="unified">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading messages...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userRole="unified">
@@ -417,11 +423,11 @@ export default function Messages() {
                             </div>
                           </div>
                           <div className="text-xs text-muted-foreground shrink-0 ml-2">
-                            {formatDate(conversation.lastMessage.sentAt)}
+                            {formatDate(conversation.lastMessage.createdAt)}
                           </div>
                         </div>
                         <p className="mt-1 text-sm truncate text-muted-foreground">
-                          {conversation.lastMessage.sender.id === "current-user" && "You: "}
+                          {conversation.lastMessage.senderId === "current-user" && "You: "}
                           {conversation.lastMessage.content}
                         </p>
                       </li>
@@ -443,7 +449,15 @@ export default function Messages() {
                         </Button>
                       )}
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                        <User className="h-5 w-5" />
+                        {conversations.find(c => c.id === selectedConversation)?.participant.avatar ? (
+                          <img 
+                            src={conversations.find(c => c.id === selectedConversation)?.participant.avatar} 
+                            alt={conversations.find(c => c.id === selectedConversation)?.participant.name} 
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-5 w-5" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-medium truncate">
@@ -469,14 +483,14 @@ export default function Messages() {
                   </div>
                   
                   <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
-                    {messages[selectedConversation]?.map((message) => (
+                    {conversationMessages[selectedConversation]?.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex ${message.sender.id === "current-user" ? "justify-end" : "justify-start"}`}
+                        className={`flex ${message.senderId === "current-user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
                           className={`max-w-[85%] rounded-lg p-3 ${
-                            message.sender.id === "current-user"
+                            message.senderId === "current-user"
                               ? "bg-primary text-primary-foreground"
                               : "bg-muted"
                           }`}
@@ -484,12 +498,12 @@ export default function Messages() {
                           <p className="break-words">{message.content}</p>
                           <div
                             className={`text-xs mt-1 ${
-                              message.sender.id === "current-user"
+                              message.senderId === "current-user"
                                 ? "text-primary-foreground/70"
                                 : "text-muted-foreground"
                             }`}
                           >
-                            {formatDate(message.sentAt)}
+                            {formatDate(message.createdAt)}
                           </div>
                         </div>
                       </div>
@@ -546,24 +560,38 @@ export default function Messages() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Subscription</label>
-              <select className="w-full p-2 border rounded-md">
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={selectedSubscription}
+                onChange={(e) => setSelectedSubscription(e.target.value)}
+              >
                 <option value="">Choose a subscription</option>
-                <option value="netflix">Netflix Premium (4 members)</option>
-                <option value="spotify">Spotify Family (5 members)</option>
-                <option value="disney">Disney+ (2 members)</option>
+                {subscriptions.map(sub => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.title} ({sub.members.length} members)
+                  </option>
+                ))}
               </select>
             </div>
             
             <div className="space-y-2">
               <label className="text-sm font-medium">Recipient</label>
-              <select className="w-full p-2 border rounded-md">
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={selectedRecipient}
+                onChange={(e) => setSelectedRecipient(e.target.value)}
+                disabled={!selectedSubscription || membersLoading}
+              >
                 <option value="">Choose a recipient</option>
                 <option value="all">All Members</option>
-                <option value="101">Emma Johnson</option>
-                <option value="102">Alex Chen</option>
-                <option value="103">Michael Lee</option>
-                <option value="104">Sarah Williams</option>
-                <option value="105">David Kim</option>
+                {members
+                  .filter(member => member.subscriptionId === selectedSubscription)
+                  .map(member => (
+                    <option key={member.id} value={member.userId}>
+                      {member.user?.name || 'Unknown User'}
+                    </option>
+                  ))
+                }
               </select>
             </div>
             
@@ -572,13 +600,15 @@ export default function Messages() {
               <Textarea 
                 placeholder="Type your message here..."
                 rows={5}
+                value={newMessageText}
+                onChange={(e) => setNewMessageText(e.target.value)}
               />
             </div>
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewMessageOpen(false)}>Cancel</Button>
-            <Button>Send Message</Button>
+            <Button onClick={handleSendNewMessage}>Send Message</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

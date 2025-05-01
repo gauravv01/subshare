@@ -162,6 +162,13 @@ model AccountCredential {
   updatedAt      DateTime     @updatedAt
 }
 
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  REVIEW
+}
+
 model Service {
   id            String         @id @default(cuid())
   name          String
@@ -170,6 +177,8 @@ model Service {
   website       String?
   category      String?
   maxMembers    Int            @default(6)
+  featured      Boolean        @default(false)
+  status        ServiceStatus  @default(ACTIVE)
   plans         Plan[]
   subscriptions Subscription[]
   createdAt     DateTime       @default(now())

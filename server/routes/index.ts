@@ -11,6 +11,7 @@ import transactionRoutes from './transactions';
 import sessionRoutes from './sessions';
 import bankRoutes from './bankDetails';
 import profileRoutes from './profile';
+import adminRoutes from './admin';
 
 
 
@@ -29,4 +30,6 @@ router.use('/transactions', transactionRoutes);
 router.use('/sessions', sessionRoutes);
 router.use('/bankDetails', bankRoutes);
 router.use('/profile', profileRoutes);
+router.use('/admin', adminRoutes);
+
 export default router;

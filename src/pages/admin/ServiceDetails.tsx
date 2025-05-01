@@ -1,58 +1,56 @@
-import React from "react";
-
-import { useLocation, useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Textarea } from "../../components/ui/textarea";
-import {  
-  ArrowLeft,
+import { 
+  ArrowLeft, 
+  Info, 
+  CreditCard, 
+  KeyRound, 
+  Plus, 
+  Edit, 
   Trash,
-  Plus,
-  Save,
-  Info,
-  CreditCard,
-  KeyRound,
-  Edit,
-  DollarSign
+  Loader2
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter
+} from "../../components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Switch } from "../../components/ui/switch";
 import { Label } from "../../components/ui/label";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "../../components/ui/table";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../components/ui/alert-dialog";
-import { useEffect } from "react";
-import { useState } from "react";
+import { useToast } from "../../hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
+import { useServices } from "../../context/ServiceProvider";
 
-type ServiceCategory = "entertainment" | "productivity" | "education" | "utility";
-type ServiceStatus = "active" | "inactive" | "maintenance";
-
+// Types
 interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
-  billingCycle: "monthly" | "yearly";
+  billingCycle: string;
   features: string[];
   seats: number;
-  discount?: number;
 }
 
 interface AccessField {
@@ -60,176 +58,71 @@ interface AccessField {
   name: string;
   description: string;
   required: boolean;
-  type: "text" | "email" | "password" | "url" | "number";
+  type: string;
   placeholder?: string;
 }
 
 interface Service {
   id: string;
   name: string;
-  category: ServiceCategory;
-  logo?: string;
   description: string;
-  status: ServiceStatus;
-  website: string;
-  maxSeats: number;
-  subscriptionPlans: SubscriptionPlan[];
+  website?: string;
+  logo?: string;
+  category: 'STREAMING' | 'GAMING' | 'PRODUCTIVITY' | 'EDUCATION' | 'MUSIC' | 'FITNESS' | 'OTHER';
+  maxMembers?: number;
+  termsUrl?: string;
+  privacyUrl?: string;
+  supportUrl?: string;
+  features: string[];
+  allowedCountries: string[];
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'REVIEW';
+  featured: boolean;
+  plans: Array<{
+    id: string;
+    name: string;
+    price: number;
+    cycle: string;
+    features: string[];
+    maxMembers: number;
+  }>;
   accessFields: AccessField[];
-  usersCount?: number;
 }
 
-// Sample service data for a new service
+// Create a new empty service template
 const newService: Service = {
   id: "",
   name: "",
-  category: "entertainment",
   description: "",
-  status: "inactive",
   website: "",
-  maxSeats: 1,
-  subscriptionPlans: [],
+  logo: "",
+  category: "OTHER",
+  maxMembers: 6,
+  termsUrl: "",
+  privacyUrl: "",
+  supportUrl: "",
+  features: [],
+  allowedCountries: [],
+  status: "INACTIVE",
+  featured: false,
+  plans: [],
   accessFields: []
 };
 
-// Sample services data (for edit mode)
-const sampleServices: Service[] = [
-  {
-    id: "1",
-    name: "Netflix",
-    category: "entertainment",
-    description: "Streaming service for movies and TV shows",
-    status: "active",
-    website: "https://netflix.com",
-    maxSeats: 5,
-    usersCount: 1256,
-    subscriptionPlans: [
-      {
-        id: "np1",
-        name: "Basic",
-        price: 9.99,
-        billingCycle: "monthly",
-        features: ["Standard Definition", "1 Screen", "No Downloads"],
-        seats: 1
-      },
-      {
-        id: "np2",
-        name: "Standard",
-        price: 15.49,
-        billingCycle: "monthly",
-        features: ["High Definition", "2 Screens", "Downloads on 2 devices"],
-        seats: 2
-      },
-      {
-        id: "np3",
-        name: "Premium",
-        price: 19.99,
-        billingCycle: "monthly",
-        features: ["Ultra HD", "4 Screens", "Downloads on 6 devices"],
-        seats: 4,
-        discount: 15
-      }
-    ],
-    accessFields: [
-      {
-        id: "nf1",
-        name: "Email",
-        description: "Netflix account email",
-        required: true,
-        type: "email",
-        placeholder: "name@example.com"
-      },
-      {
-        id: "nf2",
-        name: "Password",
-        description: "Account password",
-        required: true,
-        type: "password"
-      },
-      {
-        id: "nf3",
-        name: "Profile Name",
-        description: "Name for your profile",
-        required: true,
-        type: "text",
-        placeholder: "Your name or nickname"
-      },
-      {
-        id: "nf4",
-        name: "Profile PIN (Optional)",
-        description: "PIN for profile access control",
-        required: false,
-        type: "number",
-        placeholder: "4-digit PIN"
-      }
-    ]
-  },
-  {
-    id: "2",
-    name: "Spotify",
-    category: "entertainment",
-    description: "Music streaming service",
-    status: "active",
-    website: "https://spotify.com",
-    maxSeats: 6,
-    usersCount: 985,
-    subscriptionPlans: [
-      {
-        id: "sp1",
-        name: "Individual",
-        price: 9.99,
-        billingCycle: "monthly",
-        features: ["Ad-free music", "Offline playback", "On-demand playback"],
-        seats: 1
-      },
-      {
-        id: "sp2",
-        name: "Duo",
-        price: 12.99,
-        billingCycle: "monthly",
-        features: ["2 Premium accounts", "Ad-free music", "Offline playback"],
-        seats: 2
-      },
-      {
-        id: "sp3",
-        name: "Family",
-        price: 15.99,
-        billingCycle: "monthly",
-        features: ["6 Premium accounts", "Ad-free music", "Block explicit music"],
-        seats: 6,
-        discount: 20
-      }
-    ],
-    accessFields: [
-      {
-        id: "sf1",
-        name: "Email",
-        description: "Spotify account email",
-        required: true,
-        type: "email",
-        placeholder: "name@example.com"
-      },
-      {
-        id: "sf2",
-        name: "Password",
-        description: "Account password",
-        required: true,
-        type: "password"
-      },
-      {
-        id: "sf3",
-        name: "Display Name",
-        description: "Your name in Spotify",
-        required: true,
-        type: "text",
-        placeholder: "Your name"
-      }
-    ]
-  }
-];
-
 export default function ServiceDetails() {
-      const params = useParams();
-    const navigate = useNavigate();
+  const params = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { 
+    fetchService, 
+    addService, 
+    updateService, 
+    deleteService, 
+    addServicePlan, 
+    updateServicePlan, 
+    deleteServicePlan,
+    isLoading 
+  } = useServices();
+  
   const isNewService = params.id === "new";
   const serviceId = isNewService ? "" : params.id || "";
   
@@ -242,20 +135,33 @@ export default function ServiceDetails() {
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
   const [newFeature, setNewFeature] = useState<string>("");
   const [isDirty, setIsDirty] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch the service data based on ID (for edit mode)
   useEffect(() => {
-    if (!isNewService && serviceId) {
-      const foundService = sampleServices.find(s => s.id === serviceId);
-      if (foundService) {
-        setService(foundService);
-      } else {
-        console.error("Service not found");
-        // Redirect to service management page if service not found
-        navigate("/admin/services");
+    const loadService = async () => {
+      if (!isNewService && serviceId) {
+        try {
+          const serviceData = await fetchService(serviceId);
+          
+          // Convert API service format to component format
+          setService({
+            ...serviceData,
+            accessFields: serviceData.accessFields || []
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to load service details. Please try again.",
+            variant: "destructive",
+          });
+          navigate("/admin/services");
+        }
       }
-    }
-  }, [isNewService, serviceId, navigate]);
+    };
+    
+    loadService();
+  }, [isNewService, serviceId, fetchService, navigate, toast]);
 
   // Handle service form changes
   const handleServiceChange = (field: keyof Service, value: any) => {
@@ -269,10 +175,10 @@ export default function ServiceDetails() {
   // Handle plan operations
   const handleAddPlan = () => {
     const newPlan: SubscriptionPlan = {
-      id: `plan_${Date.now()}`,
+      id: "",
       name: "",
       price: 0,
-      billingCycle: "monthly",
+      billingCycle: "MONTHLY",
       features: [],
       seats: 1
     };
@@ -281,42 +187,121 @@ export default function ServiceDetails() {
     setEditingPlanIndex(null);
   };
 
-  const handleEditPlan = (plan: SubscriptionPlan, index: number) => {
-    setEditingPlan({...plan});
+  const handleEditPlan = (plan: any, index: number) => {
+    setEditingPlan({
+      id: plan.id,
+      name: plan.name,
+      price: plan.price,
+      billingCycle: plan.cycle,
+      features: plan.features || [],
+      seats: plan.maxMembers
+    });
     setEditingPlanIndex(index);
   };
 
-  const handleDeletePlan = (index: number) => {
-    setService(prev => ({
-      ...prev,
-      subscriptionPlans: prev.subscriptionPlans.filter((_, i) => i !== index)
-    }));
-    setIsDirty(true);
+  const handleDeletePlan = async (index: number) => {
+    if (isNewService) {
+      // For new services, just update the local state
+      setService(prev => ({
+        ...prev,
+        plans: prev.plans.filter((_, i) => i !== index)
+      }));
+      setIsDirty(true);
+    } else {
+      // For existing services, call the API
+      const planId = service.plans[index].id;
+      setIsSubmitting(true);
+      
+      try {
+        await deleteServicePlan(service.id, planId);
+        
+        setService(prev => ({
+          ...prev,
+          plans: prev.plans.filter((_, i) => i !== index)
+        }));
+        
+        toast({
+          title: "Plan deleted",
+          description: "The plan has been deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete plan. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
-  const handleSavePlan = () => {
-    if (editingPlan) {
+  const handleSavePlan = async () => {
+    if (!editingPlan) return;
+    
+    // Convert component plan format to API format
+    const apiPlan = {
+      id: editingPlan.id,
+      name: editingPlan.name,
+      price: editingPlan.price,
+      cycle: editingPlan.billingCycle,
+      features: editingPlan.features,
+      maxMembers: editingPlan.seats
+    };
+    
+    if (isNewService) {
+      // For new services, just update the local state
       setService(prev => {
-        const newPlans = [...prev.subscriptionPlans];
+        const newPlans = [...prev.plans];
         
         if (editingPlanIndex !== null) {
           // Update existing plan
-          newPlans[editingPlanIndex] = editingPlan;
+          newPlans[editingPlanIndex] = apiPlan;
         } else {
           // Add new plan
-          newPlans.push(editingPlan);
+          newPlans.push(apiPlan);
         }
         
         return {
           ...prev,
-          subscriptionPlans: newPlans
+          plans: newPlans
         };
       });
+    } else {
+      // For existing services, call the API
+      setIsSubmitting(true);
       
-      setEditingPlan(null);
-      setEditingPlanIndex(null);
-      setIsDirty(true);
+      try {
+        if (editingPlan.id) {
+          // Update existing plan
+          await updateServicePlan(service.id, editingPlan.id, apiPlan);
+        } else {
+          // Add new plan
+          await addServicePlan(service.id, apiPlan);
+        }
+        
+        // Refresh service data
+        const updatedService = await fetchService(service.id);
+        setService(updatedService);
+        
+        toast({
+          title: editingPlan.id ? "Plan updated" : "Plan added",
+          description: `The plan has been ${editingPlan.id ? "updated" : "added"} successfully`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to ${editingPlan.id ? "update" : "add"} plan. Please try again.`,
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
+    
+    setEditingPlan(null);
+    setEditingPlanIndex(null);
+    setIsDirty(true);
   };
 
   const handlePlanChange = (field: keyof SubscriptionPlan, value: any) => {
@@ -350,7 +335,7 @@ export default function ServiceDetails() {
   // Handle access fields operations
   const handleAddField = () => {
     const newField: AccessField = {
-      id: `field_${Date.now()}`,
+      id: "",
       name: "",
       description: "",
       required: true,
@@ -409,26 +394,75 @@ export default function ServiceDetails() {
   };
 
   // Handle the overall service save
-  const handleSaveService = () => {
-    // In a real app, this would save the service data via API
-    console.log("Saving service:", service);
+  const handleSaveService = async () => {
+    setIsSubmitting(true);
     
-    // Redirect to service management page
-    navigate("/admin/services");
+    try {
+      if (isNewService) {
+        await addService(service);
+        toast({
+          title: "Service created",
+          description: "The service has been created successfully",
+        });
+      } else {
+        await updateService(service);
+        toast({
+          title: "Service updated",
+          description: "The service has been updated successfully",
+        });
+      }
+      
+      navigate("/admin/services");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${isNewService ? "create" : "update"} service. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteService = () => {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteService = () => {
-    // In a real app, this would delete the service via API
-    console.log("Deleting service:", service.name);
+  const confirmDeleteService = async () => {
+    setIsSubmitting(true);
     
-    setDeleteDialogOpen(false);
-    // Redirect to service management page
-    navigate("/admin/services");
+    try {
+      await deleteService(service.id);
+      toast({
+        title: "Service deleted",
+        description: "The service has been deleted successfully",
+      });
+      
+      setDeleteDialogOpen(false);
+      navigate("/admin/services");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete service. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading && !isNewService) {
+    return (
+      <DashboardLayout userRole="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading service details...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userRole="admin">
@@ -497,16 +531,19 @@ export default function ServiceDetails() {
                     <Label htmlFor="category">Category</Label>
                     <Select 
                       value={service.category} 
-                      onValueChange={(value) => handleServiceChange("category", value)}
+                      onValueChange={(value) => handleServiceChange("category", value as Service['category'])}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="entertainment">Entertainment</SelectItem>
-                        <SelectItem value="productivity">Productivity</SelectItem>
-                        <SelectItem value="education">Education</SelectItem>
-                        <SelectItem value="utility">Utility</SelectItem>
+                        <SelectItem value="STREAMING">Streaming</SelectItem>
+                        <SelectItem value="GAMING">Gaming</SelectItem>
+                        <SelectItem value="PRODUCTIVITY">Productivity</SelectItem>
+                        <SelectItem value="EDUCATION">Education</SelectItem>
+                        <SelectItem value="MUSIC">Music</SelectItem>
+                        <SelectItem value="FITNESS">Fitness</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -525,27 +562,38 @@ export default function ServiceDetails() {
                     <Label htmlFor="status">Status</Label>
                     <Select 
                       value={service.status} 
-                      onValueChange={(value) => handleServiceChange("status", value as ServiceStatus)}
+                      onValueChange={(value) => handleServiceChange("status", value as Service['status'])}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="REVIEW">Review</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="maxSeats">Maximum Seats</Label>
+                    <Label htmlFor="maxMembers">Maximum Members</Label>
                     <Input 
-                      id="maxSeats" 
+                      id="maxMembers" 
                       type="number" 
                       min="1"
-                      value={service.maxSeats} 
-                      onChange={(e) => handleServiceChange("maxSeats", parseInt(e.target.value))} 
+                      value={service.maxMembers || 1} 
+                      onChange={(e) => handleServiceChange("maxMembers", parseInt(e.target.value))} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="logo">Logo URL</Label>
+                    <Input 
+                      id="logo" 
+                      value={service.logo} 
+                      onChange={(e) => handleServiceChange("logo", e.target.value)} 
+                      placeholder="https://example.com/logo.png"
                     />
                   </div>
                 </div>
@@ -560,8 +608,34 @@ export default function ServiceDetails() {
                     rows={4}
                   />
                 </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="featured" 
+                    checked={service.featured}
+                    onCheckedChange={(value) => handleServiceChange("featured", value)}
+                  />
+                  <Label htmlFor="featured">Feature this service on the homepage</Label>
+                </div>
               </CardContent>
             </Card>
+            
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => navigate("/admin/services")}>
+                Cancel
+              </Button>
+              <div className="space-x-2">
+                {!isNewService && (
+                  <Button variant="destructive" onClick={handleDeleteService}>
+                    Delete Service
+                  </Button>
+                )}
+                <Button onClick={handleSaveService} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isNewService ? "Create Service" : "Save Changes"}
+                </Button>
+              </div>
+            </div>
           </TabsContent>
           
           {/* Subscription Plans Tab */}
@@ -580,29 +654,34 @@ export default function ServiceDetails() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {service.subscriptionPlans.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No subscription plans defined. Click "Add Plan" to create your first plan.
+                {service.plans.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">No subscription plans defined yet.</p>
+                    <Button variant="outline" onClick={handleAddPlan}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Plan
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {service.subscriptionPlans.map((plan, index) => (
-                      <Card key={plan.id} className="overflow-hidden">
+                    {service.plans.map((plan, index) => (
+                      <Card key={plan.id || index} className="overflow-hidden">
                         <CardHeader className="pb-2">
                           <div className="flex justify-between items-start">
                             <div>
                               <CardTitle>{plan.name}</CardTitle>
-                              <div className="flex mt-1 items-center gap-2">
-                                <Badge>
-                                  <DollarSign className="h-3 w-3 mr-1" />
-                                  {plan.price.toFixed(2)} / {plan.billingCycle}
-                                </Badge>
-                                <Badge variant="outline">
-                                  {plan.seats} {plan.seats === 1 ? "seat" : "seats"}
-                                </Badge>
-                                {plan.discount && (
-                                  <Badge variant="secondary">
-                                    {plan.discount}% discount
+                              <CardDescription>
+                                ${plan.price}/{plan.cycle === "MONTHLY" ? "month" : "year"} • {plan.maxMembers} members
+                              </CardDescription>
+                              <div className="flex mt-1 flex-wrap gap-1">
+                                {plan.features.slice(0, 3).map((feature, i) => (
+                                  <Badge key={i} variant="secondary" className="font-normal">
+                                    {feature}
+                                  </Badge>
+                                ))}
+                                {plan.features.length > 3 && (
+                                  <Badge variant="secondary" className="font-normal">
+                                    +{plan.features.length - 3} more
                                   </Badge>
                                 )}
                               </div>
@@ -617,147 +696,139 @@ export default function ServiceDetails() {
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="pb-3 pt-0">
-                          <div className="text-sm">
-                            <div className="font-medium mb-1">Features:</div>
-                            <ul className="list-disc pl-5 space-y-1">
-                              {plan.features.map((feature, i) => (
-                                <li key={i}>{feature}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
                 )}
+                
+                {/* Plan Edit Dialog */}
+                {editingPlan && (
+                  <Dialog open={!!editingPlan} onOpenChange={(open) => !open && setEditingPlan(null)}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {editingPlanIndex !== null ? "Edit Plan" : "Add New Plan"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Configure subscription plan details
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="planName">Plan Name</Label>
+                            <Input 
+                              id="planName" 
+                              value={editingPlan.name} 
+                              onChange={(e) => handlePlanChange("name", e.target.value)} 
+                              placeholder="e.g. Basic, Premium"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="planPrice">Price</Label>
+                            <Input 
+                              id="planPrice" 
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editingPlan.price} 
+                              onChange={(e) => handlePlanChange("price", parseFloat(e.target.value))} 
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="planCycle">Billing Cycle</Label>
+                            <Select 
+                              value={editingPlan.billingCycle} 
+                              onValueChange={(value) => handlePlanChange("billingCycle", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select billing cycle" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                <SelectItem value="YEARLY">Yearly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="planSeats">Number of Seats</Label>
+                            <Input 
+                              id="planSeats" 
+                              type="number"
+                              min="1"
+                              value={editingPlan.seats} 
+                              onChange={(e) => handlePlanChange("seats", parseInt(e.target.value))} 
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Features</Label>
+                          <div className="border rounded-md p-4">
+                            <div className="space-y-2">
+                              {editingPlan.features.map((feature, index) => (
+                                <div key={index} className="flex items-center justify-between">
+                                  <span>{feature}</span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleRemoveFeature(index)}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <div className="flex items-center mt-4">
+                              <Input 
+                                value={newFeature}
+                                onChange={(e) => setNewFeature(e.target.value)}
+                                placeholder="Add a feature..."
+                                className="flex-1 mr-2"
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddFeature())}
+                              />
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleAddFeature}
+                                disabled={!newFeature.trim()}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingPlan(null)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSavePlan} disabled={isSubmitting}>
+                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save Plan
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
             </Card>
             
-            {/* Plan Edit Dialog */}
-            {editingPlan && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {editingPlanIndex !== null ? "Edit Plan" : "Add New Plan"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="planName">Plan Name</Label>
-                      <Input 
-                        id="planName" 
-                        value={editingPlan.name} 
-                        onChange={(e) => handlePlanChange("name", e.target.value)} 
-                        placeholder="e.g. Basic, Premium, Family"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Price</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          id="price" 
-                          type="number" 
-                          min="0" 
-                          step="0.01"
-                          className="pl-8"
-                          value={editingPlan.price} 
-                          onChange={(e) => handlePlanChange("price", parseFloat(e.target.value))} 
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="billingCycle">Billing Cycle</Label>
-                      <Select 
-                        value={editingPlan.billingCycle} 
-                        onValueChange={(value) => handlePlanChange("billingCycle", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select billing cycle" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="yearly">Yearly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="seats">Number of Seats</Label>
-                      <Input 
-                        id="seats" 
-                        type="number" 
-                        min="1"
-                        value={editingPlan.seats} 
-                        onChange={(e) => handlePlanChange("seats", parseInt(e.target.value))} 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="discount">Discount % (Optional)</Label>
-                      <Input 
-                        id="discount" 
-                        type="number" 
-                        min="0"
-                        max="100"
-                        value={editingPlan.discount || ""} 
-                        onChange={(e) => handlePlanChange("discount", e.target.value ? parseInt(e.target.value) : undefined)} 
-                        placeholder="e.g. 15"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Features</Label>
-                    <ul className="border rounded-md p-2 min-h-[100px] mb-2">
-                      {editingPlan.features.length === 0 ? (
-                        <li className="text-center py-4 text-muted-foreground">
-                          No features added yet
-                        </li>
-                      ) : (
-                        editingPlan.features.map((feature, index) => (
-                          <li key={index} className="flex justify-between items-center py-1 px-2 hover:bg-muted rounded-md">
-                            <span>{feature}</span>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveFeature(index)}>
-                              <Trash className="h-3.5 w-3.5" />
-                            </Button>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                    
-                    <div className="flex gap-2">
-                      <Input 
-                        value={newFeature} 
-                        onChange={(e) => setNewFeature(e.target.value)} 
-                        placeholder="Add a feature..."
-                        onKeyDown={(e) => e.key === "Enter" && handleAddFeature()}
-                      />
-                      <Button onClick={handleAddFeature}>Add</Button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setEditingPlan(null);
-                        setEditingPlanIndex(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSavePlan}>
-                      Save Plan
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => navigate("/admin/services")}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveService} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isNewService ? "Create Service" : "Save Changes"}
+              </Button>
+            </div>
           </TabsContent>
           
           {/* Access Info Tab */}
@@ -765,9 +836,9 @@ export default function ServiceDetails() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <div>
-                  <CardTitle>Access Information</CardTitle>
+                  <CardTitle>Access Fields</CardTitle>
                   <CardDescription>
-                    Define the information needed for users to access this service
+                    Define what information is needed to access this service
                   </CardDescription>
                 </div>
                 <Button onClick={handleAddField}>
@@ -776,14 +847,18 @@ export default function ServiceDetails() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {service.accessFields && service.accessFields.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No access fields defined. Click "Add Field" to specify what information users need to access this service.
+                {(!service.accessFields || service.accessFields.length === 0) ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">No access fields defined yet.</p>
+                    <Button variant="outline" onClick={handleAddField}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Field
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {service.accessFields && service.accessFields.map((field, index) => (
-                      <Card key={field.id} className="overflow-hidden">
+                    {service.accessFields.map((field, index) => (
+                      <Card key={field.id || index} className="overflow-hidden">
                         <CardHeader className="pb-2">
                           <div className="flex justify-between items-start">
                             <div>
@@ -814,125 +889,108 @@ export default function ServiceDetails() {
                     ))}
                   </div>
                 )}
+                
+                {/* Field Edit Dialog */}
+                {editingField && (
+                  <Dialog open={!!editingField} onOpenChange={(open) => !open && setEditingField(null)}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {editingFieldIndex !== null ? "Edit Field" : "Add New Field"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Configure access field details
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="fieldName">Field Name</Label>
+                            <Input 
+                              id="fieldName" 
+                              value={editingField.name} 
+                              onChange={(e) => handleFieldChange("name", e.target.value)} 
+                              placeholder="e.g. Email, Password"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="fieldType">Field Type</Label>
+                            <Select 
+                              value={editingField.type} 
+                              onValueChange={(value) => handleFieldChange("type", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select field type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="email">Email</SelectItem>
+                                <SelectItem value="password">Password</SelectItem>
+                                <SelectItem value="url">URL</SelectItem>
+                                <SelectItem value="number">Number</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="fieldDescription">Description</Label>
+                            <Textarea 
+                              id="fieldDescription" 
+                              value={editingField.description} 
+                              onChange={(e) => handleFieldChange("description", e.target.value)} 
+                              placeholder="Explain what this field is for..."
+                              rows={2}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="fieldPlaceholder">Placeholder (Optional)</Label>
+                            <Input 
+                              id="fieldPlaceholder" 
+                              value={editingField.placeholder || ""} 
+                              onChange={(e) => handleFieldChange("placeholder", e.target.value || undefined)} 
+                              placeholder="e.g. Enter your email"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="fieldRequired"
+                              checked={editingField.required}
+                              onCheckedChange={(value) => handleFieldChange("required", value)}
+                            />
+                            <Label htmlFor="fieldRequired">Required Field</Label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingField(null)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveField}>
+                          Save Field
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
             </Card>
             
-            {/* Field Edit Dialog */}
-            {editingField && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {editingFieldIndex !== null ? "Edit Field" : "Add New Field"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fieldName">Field Name</Label>
-                      <Input 
-                        id="fieldName" 
-                        value={editingField.name} 
-                        onChange={(e) => handleFieldChange("name", e.target.value)} 
-                        placeholder="e.g. Email, Password, Username"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="fieldType">Field Type</Label>
-                      <Select 
-                        value={editingField.type} 
-                        onValueChange={(value) => handleFieldChange("type", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select field type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="email">Email</SelectItem>
-                          <SelectItem value="password">Password</SelectItem>
-                          <SelectItem value="url">URL</SelectItem>
-                          <SelectItem value="number">Number</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="fieldDescription">Description</Label>
-                      <Textarea 
-                        id="fieldDescription" 
-                        value={editingField.description} 
-                        onChange={(e) => handleFieldChange("description", e.target.value)} 
-                        placeholder="Explain what this field is for..."
-                        rows={2}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="fieldPlaceholder">Placeholder (Optional)</Label>
-                      <Input 
-                        id="fieldPlaceholder" 
-                        value={editingField.placeholder || ""} 
-                        onChange={(e) => handleFieldChange("placeholder", e.target.value || undefined)} 
-                        placeholder="e.g. Enter your email"
-                      />
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="fieldRequired"
-                        checked={editingField.required}
-                        onChange={(e) => handleFieldChange("required", e.target.checked)}
-                        className="form-checkbox h-4 w-4"
-                      />
-                      <Label htmlFor="fieldRequired" className="cursor-pointer">Required Field</Label>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setEditingField(null);
-                        setEditingFieldIndex(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveField}>
-                      Save Field
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => navigate("/admin/services")}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveService} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isNewService ? "Create Service" : "Save Changes"}
+              </Button>
+            </div>
           </TabsContent>
         </Tabs>
-        
-        {/* Action Buttons */}
-        <div className="flex justify-between pt-2">
-          <Button 
-            variant="destructive" 
-            onClick={handleDeleteService}
-            disabled={isNewService}
-          >
-            <Trash className="h-4 w-4 mr-2" />
-            Delete Service
-          </Button>
-          
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/admin/services")}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveService}
-              disabled={!service.name || !service.website}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Service
-            </Button>
-          </div>
-        </div>
       </div>
       
       {/* Delete confirmation dialog */}

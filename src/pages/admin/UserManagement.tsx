@@ -1,19 +1,18 @@
-import { useState } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from "react";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { 
   Search,
   MoreHorizontal, 
   User,
   Ban,
   CheckCircle,
-  Filter,
   Eye,
   Edit,
-  UserCog
+  Loader2
 } from "lucide-react";
 import { 
   Dialog, 
@@ -23,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -31,7 +30,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel
-} from "@/components/ui/dropdown-menu";
+} from "../../components/ui/dropdown-menu";
 import { 
   Table, 
   TableBody, 
@@ -39,13 +38,17 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+} from "../../components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Label } from "../../components/ui/label";
+import { useToast } from "../../hooks/use-toast";
+import axiosInstance from "../../lib/axiosInstance";
+import { format } from "date-fns";
 
-type UserStatus = "active" | "inactive" | "banned" | "pending";
-type UserRole = "account-holder" | "co-subscriber" | "admin";
+// Types
+type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "PENDING";
+type UserRole = "ADMIN" | "UNIFIED";
 
 interface User {
   id: string;
@@ -53,97 +56,15 @@ interface User {
   email: string;
   role: UserRole;
   status: UserStatus;
-  country: string;
-  joinDate: string;
-  subscriptions?: number;
-  members?: number;
+  country?: string;
+  createdAt: string;
+  subscriptionCount?: number;
+  membershipCount?: number;
 }
 
-// Sample user data
-const users: User[] = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@example.com",
-    role: "account-holder",
-    status: "active",
-    country: "United States",
-    joinDate: "2024-10-15",
-    subscriptions: 3,
-    members: 12
-  },
-  {
-    id: "2",
-    name: "Emma Johnson",
-    email: "emma.j@example.com",
-    role: "co-subscriber",
-    status: "active",
-    country: "Canada",
-    joinDate: "2024-11-05"
-  },
-  {
-    id: "3",
-    name: "Michael Johnson",
-    email: "michael.j@example.com",
-    role: "admin",
-    status: "active",
-    country: "United Kingdom",
-    joinDate: "2024-09-20"
-  },
-  {
-    id: "4",
-    name: "Sarah Williams",
-    email: "s.williams@example.com",
-    role: "account-holder",
-    status: "active",
-    country: "Australia",
-    joinDate: "2024-12-01",
-    subscriptions: 1,
-    members: 3
-  },
-  {
-    id: "5",
-    name: "David Lee",
-    email: "david.lee@example.com",
-    role: "co-subscriber",
-    status: "banned",
-    country: "South Korea",
-    joinDate: "2024-10-10"
-  },
-  {
-    id: "6",
-    name: "Lisa Chen",
-    email: "lisa.chen@example.com",
-    role: "account-holder",
-    status: "inactive",
-    country: "Singapore",
-    joinDate: "2024-11-15",
-    subscriptions: 2,
-    members: 7
-  },
-  {
-    id: "7",
-    name: "James Wilson",
-    email: "j.wilson@example.com",
-    role: "co-subscriber",
-    status: "active",
-    country: "Germany",
-    joinDate: "2024-12-05"
-  },
-  {
-    id: "8",
-    name: "Maria Garcia",
-    email: "m.garcia@example.com",
-    role: "account-holder",
-    status: "pending",
-    country: "Spain",
-    joinDate: "2024-12-10",
-    subscriptions: 0,
-    members: 0
-  }
-];
-
 export default function UserManagement() {
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -151,15 +72,40 @@ export default function UserManagement() {
   const [editUserDialog, setEditUserDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const itemsPerPage = 10;
+
+  // Fetch users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      try {
+        const response = await axiosInstance.get('/admin/users');
+        setUsers(response.data);
+        setTotalUsers(response.data.length);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load users. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUsers();
+  }, [toast]);
 
   // Filter and search users
   const filteredUsers = users.filter(user => {
     // Search by name, email, or country
     const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) || 
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.country.toLowerCase().includes(searchTerm.toLowerCase());
+      (user.country?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     // Filter by role
     const matchesRole = selectedRole === "all" || user.role === selectedRole;
@@ -181,34 +127,111 @@ export default function UserManagement() {
   const handleViewUser = (user: User) => {
     setSelectedUser(user);
     setViewUserDialog(true);
-    console.log("Action: view for user:", user.name);
   };
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     setEditUserDialog(true);
-    console.log("Action: edit for user:", user.name);
   };
 
-  const handleBanUser = (user: User) => {
-    // In a real app, this would call an API to update the user status
-    console.log("Action: ban for user:", user.name);
+  const handleUpdateUser = async (userData: Partial<User>) => {
+    if (!selectedUser) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await axiosInstance.put(`/admin/users/${selectedUser.id}`, userData);
+      
+      // Update the user in the local state
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, ...response.data } : user
+      ));
+      
+      setSelectedUser({ ...selectedUser, ...response.data });
+      
+      toast({
+        title: "User updated",
+        description: "User information has been updated successfully",
+      });
+      
+      setEditUserDialog(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleUnbanUser = (user: User) => {
-    // In a real app, this would call an API to update the user status
-    console.log("Action: unban for user:", user.name);
+  const handleBanUser = async (user: User) => {
+    setIsSubmitting(true);
+    try {
+      await axiosInstance.put(`/admin/users/${user.id}/status`, { status: "BANNED" });
+      
+      // Update the user in the local state
+      setUsers(users.map(u => 
+        u.id === user.id ? { ...u, status: "BANNED" as UserStatus } : u
+      ));
+      
+      if (selectedUser && selectedUser.id === user.id) {
+        setSelectedUser({ ...selectedUser, status: "BANNED" as UserStatus });
+      }
+      
+      toast({
+        title: "User banned",
+        description: `${user.name || user.email} has been banned`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to ban user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUnbanUser = async (user: User) => {
+    setIsSubmitting(true);
+    try {
+      await axiosInstance.put(`/admin/users/${user.id}/status`, { status: "ACTIVE" });
+      
+      // Update the user in the local state
+      setUsers(users.map(u => 
+        u.id === user.id ? { ...u, status: "ACTIVE" as UserStatus } : u
+      ));
+      
+      if (selectedUser && selectedUser.id === user.id) {
+        setSelectedUser({ ...selectedUser, status: "ACTIVE" as UserStatus });
+      }
+      
+      toast({
+        title: "User unbanned",
+        description: `${user.name || user.email} has been unbanned`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unban user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStatusBadge = (status: UserStatus) => {
     switch(status) {
-      case "active":
+      case "ACTIVE":
         return <Badge className="bg-green-500">Active</Badge>;
-      case "inactive":
+      case "INACTIVE":
         return <Badge variant="outline" className="text-gray-500">Inactive</Badge>;
-      case "banned":
+      case "BANNED":
         return <Badge variant="destructive">Banned</Badge>;
-      case "pending":
+      case "PENDING":
         return <Badge variant="secondary">Pending</Badge>;
       default:
         return null;
@@ -217,16 +240,27 @@ export default function UserManagement() {
 
   const renderRoleBadge = (role: UserRole) => {
     switch(role) {
-      case "admin":
+      case "ADMIN":
         return <Badge className="bg-purple-500">Admin</Badge>;
-      case "account-holder":
-        return <Badge className="bg-blue-500">Account Holder</Badge>;
-      case "co-subscriber":
-        return <Badge className="bg-cyan-500">Co-Subscriber</Badge>;
+      case "UNIFIED":
+        return <Badge className="bg-blue-500">User</Badge>;
       default:
-        return null;
+        return <Badge variant="outline">{role}</Badge>;
     }
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole="admin">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading users...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userRole="admin">
@@ -258,9 +292,8 @@ export default function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="account-holder">Account Holder</SelectItem>
-                  <SelectItem value="co-subscriber">Co-Subscriber</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="UNIFIED">User</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -270,10 +303,10 @@ export default function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="banned">Banned</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="BANNED">Banned</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -311,15 +344,15 @@ export default function UserManagement() {
                               <User className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <div className="font-medium">{user.name}</div>
+                              <div className="font-medium">{user.name || 'Unnamed User'}</div>
                               <div className="text-sm text-muted-foreground">{user.email}</div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>{renderRoleBadge(user.role)}</TableCell>
                         <TableCell>{renderStatusBadge(user.status)}</TableCell>
-                        <TableCell>{user.country}</TableCell>
-                        <TableCell>{new Date(user.joinDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{user.country || 'Unknown'}</TableCell>
+                        <TableCell>{format(new Date(user.createdAt), 'MMM d, yyyy')}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -337,7 +370,7 @@ export default function UserManagement() {
                                 Edit user
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              {user.status === "banned" ? (
+                              {user.status === "BANNED" ? (
                                 <DropdownMenuItem onClick={() => handleUnbanUser(user)}>
                                   <CheckCircle className="mr-2 h-4 w-4" />
                                   Unban user
@@ -381,7 +414,7 @@ export default function UserManagement() {
                         <User className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <div className="font-medium">{user.name}</div>
+                        <div className="font-medium">{user.name || 'Unnamed User'}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                         <div className="flex gap-2 mt-1">
                           {renderRoleBadge(user.role)}
@@ -405,7 +438,7 @@ export default function UserManagement() {
                           Edit user
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {user.status === "banned" ? (
+                        {user.status === "BANNED" ? (
                           <DropdownMenuItem onClick={() => handleUnbanUser(user)}>
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Unban user
@@ -425,21 +458,21 @@ export default function UserManagement() {
                   <div className="px-4 pb-4 pt-0 border-t text-sm grid grid-cols-2 gap-2">
                     <div>
                       <div className="text-muted-foreground">Country</div>
-                      <div>{user.country}</div>
+                      <div>{user.country || 'Unknown'}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Join Date</div>
-                      <div>{new Date(user.joinDate).toLocaleDateString()}</div>
+                      <div>{format(new Date(user.createdAt), 'MMM d, yyyy')}</div>
                     </div>
-                    {user.role === "account-holder" && (
+                    {user.role === "UNIFIED" && (
                       <>
                         <div>
                           <div className="text-muted-foreground">Subscriptions</div>
-                          <div>{user.subscriptions}</div>
+                          <div>{user.subscriptionCount || 0}</div>
                         </div>
                         <div>
                           <div className="text-muted-foreground">Members</div>
-                          <div>{user.members}</div>
+                          <div>{user.membershipCount || 0}</div>
                         </div>
                       </>
                     )}
@@ -491,7 +524,7 @@ export default function UserManagement() {
                 <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center mb-2">
                   <User className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold">{selectedUser.name}</h3>
+                <h3 className="text-xl font-semibold">{selectedUser.name || 'Unnamed User'}</h3>
                 <div className="flex gap-2 mt-1">
                   {renderRoleBadge(selectedUser.role)}
                   {renderStatusBadge(selectedUser.status)}
@@ -505,21 +538,21 @@ export default function UserManagement() {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground">Country</h4>
-                  <p>{selectedUser.country}</p>
+                  <p>{selectedUser.country || 'Unknown'}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground">Join Date</h4>
-                  <p>{new Date(selectedUser.joinDate).toLocaleDateString()}</p>
+                  <p>{format(new Date(selectedUser.createdAt), 'MMM d, yyyy')}</p>
                 </div>
-                {selectedUser.role === "account-holder" && (
+                {selectedUser.role === "UNIFIED" && (
                   <>
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
-                      <p>{selectedUser.subscriptions}</p>
+                      <p>{selectedUser.subscriptionCount || 0}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Members</h4>
-                      <p>{selectedUser.members}</p>
+                      <p>{selectedUser.membershipCount || 0}</p>
                     </div>
                   </>
                 )}
@@ -552,44 +585,54 @@ export default function UserManagement() {
           </DialogHeader>
           
           {selectedUser && (
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const userData = {
+                name: formData.get('name') as string,
+                email: formData.get('email') as string,
+                role: formData.get('role') as UserRole,
+                status: formData.get('status') as UserStatus,
+                country: formData.get('country') as string,
+              };
+              handleUpdateUser(userData);
+            }}>
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="name">Name</Label>
-                  <Input id="name" defaultValue={selectedUser.name} />
+                  <Input id="name" name="name" defaultValue={selectedUser.name || ''} />
                 </div>
                 
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue={selectedUser.email} />
+                  <Input id="email" name="email" type="email" defaultValue={selectedUser.email} />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="role">Role</Label>
-                    <Select defaultValue={selectedUser.role}>
+                    <Select defaultValue={selectedUser.role} name="role">
                       <SelectTrigger>
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="account-holder">Account Holder</SelectItem>
-                        <SelectItem value="co-subscriber">Co-Subscriber</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="UNIFIED">User</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div>
                     <Label htmlFor="status">Status</Label>
-                    <Select defaultValue={selectedUser.status}>
+                    <Select defaultValue={selectedUser.status} name="status">
                       <SelectTrigger>
                         <SelectValue placeholder="Select a status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="banned">Banned</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        <SelectItem value="BANNED">Banned</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -597,13 +640,22 @@ export default function UserManagement() {
                 
                 <div>
                   <Label htmlFor="country">Country</Label>
-                  <Input id="country" defaultValue={selectedUser.country} />
+                  <Input id="country" name="country" defaultValue={selectedUser.country || ''} />
                 </div>
               </div>
           
               <DialogFooter>
-                <Button variant="outline" onClick={() => setEditUserDialog(false)}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
+                <Button variant="outline" type="button" onClick={() => setEditUserDialog(false)}>Cancel</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           )}

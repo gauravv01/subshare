@@ -1,10 +1,10 @@
-import { useState } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import React, { useState, useEffect } from "react";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Textarea } from "../../components/ui/textarea";
 import { 
   MoreHorizontal, 
   Search, 
@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Check,
   X,
+  Loader2
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -23,7 +24,7 @@ import {
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+} from "../../components/ui/dropdown-menu";
 import { 
   Dialog, 
   DialogContent, 
@@ -32,27 +33,32 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
+} from "../../components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+} from "../../components/ui/select";
+import { Switch } from "../../components/ui/switch";
+import { Label } from "../../components/ui/label";
+import { useToast } from "../../hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
+
+// API Services
+import { useServices } from "../../context/ServiceProvider";
 
 // Types
 type ServiceCategory = "entertainment" | "productivity" | "education" | "other";
 type PlanType = "basic" | "standard" | "premium" | "custom";
-type ServiceStatus = "active" | "inactive" | "pending-review";
+type ServiceStatus = "ACTIVE" | "INACTIVE" | "PENDING" | "REVIEW";
 
 interface ServicePlan {
   id: string;
@@ -66,17 +72,31 @@ interface ServicePlan {
 interface Service {
   id: string;
   name: string;
-  category: ServiceCategory;
-  status: ServiceStatus;
   description: string;
-  logoUrl: string;
-  plans: ServicePlan[];
-  availableCountries: string[];
+  website?: string;
+  logo?: string;
+  category: 'STREAMING' | 'GAMING' | 'PRODUCTIVITY' | 'EDUCATION' | 'MUSIC' | 'FITNESS' | 'OTHER';
+  maxMembers?: number;
+  termsUrl?: string;
+  privacyUrl?: string;
+  supportUrl?: string;
+  features: string[];
+  allowedCountries: string[];
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'REVIEW';
   featured: boolean;
-  onboardingInstructions: string;
+  plans: Array<{
+    id: string;
+    name: string;
+    price: number;
+    cycle: string;
+    features: string[];
+    maxMembers: number;
+  }>;
 }
 
 export default function ManageServices() {
+  const { toast } = useToast();
+  const { services, fetchServices, addService, updateService, deleteService, addServicePlan, updateServicePlan, deleteServicePlan, updateServiceStatus, updateServiceFeatured } = useServices();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>();
@@ -85,256 +105,368 @@ export default function ManageServices() {
   const [currentService, setCurrentService] = useState<Service | null>(null);
   const [isNewService, setIsNewService] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<ServicePlan | null>(null);
-  
-  // Sample service data
-  const services: Service[] = [
-    {
-      id: "1",
-      name: "Netflix",
-      category: "entertainment",
-      status: "active",
-      description: "Stream TV shows and movies online or stream right to your smart TV, game console, PC, Mac, mobile, tablet, and more.",
-      logoUrl: "/logos/netflix.svg",
-      plans: [
-        {
-          id: "1-1",
-          name: "Basic",
-          maxUsers: 1,
-          price: 9.99,
-          recurrence: "monthly",
-          features: ["SD Video Quality", "Watch on 1 device at a time", "No ads"],
-        },
-        {
-          id: "1-2",
-          name: "Standard",
-          maxUsers: 2,
-          price: 15.49,
-          recurrence: "monthly",
-          features: ["HD Video Quality", "Watch on 2 devices at a time", "No ads"],
-        },
-        {
-          id: "1-3",
-          name: "Premium",
-          maxUsers: 4,
-          price: 19.99,
-          recurrence: "monthly",
-          features: ["4K+HDR Video Quality", "Watch on 4 devices at a time", "No ads", "Downloadable content"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "JP", "KR", "DE", "FR", "IT", "BR"],
-      featured: true,
-      onboardingInstructions: "1. Create your account\n2. Choose your plan\n3. Create payment method\n4. Set up profiles for members\n5. Share login details with members",
-    },
-    {
-      id: "2",
-      name: "Spotify",
-      category: "entertainment",
-      status: "active",
-      description: "Digital music service that gives you access to millions of songs. Listen to the songs and podcasts you love and discover new music.",
-      logoUrl: "/logos/spotify.svg",
-      plans: [
-        {
-          id: "2-1",
-          name: "Individual",
-          maxUsers: 1,
-          price: 9.99,
-          recurrence: "monthly",
-          features: ["Ad-free music listening", "Play anywhere", "On-demand playback"],
-        },
-        {
-          id: "2-2",
-          name: "Duo",
-          maxUsers: 2,
-          price: 12.99,
-          recurrence: "monthly",
-          features: ["2 Premium accounts", "Ad-free music listening", "Individual accounts", "Duo Mix"],
-        },
-        {
-          id: "2-3",
-          name: "Family",
-          maxUsers: 6,
-          price: 15.99,
-          recurrence: "monthly",
-          features: ["6 Premium accounts", "Block explicit music", "Family Mix", "Spotify Kids"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "JP", "KR", "DE", "FR", "IT", "BR"],
-      featured: true,
-      onboardingInstructions: "1. Set up Spotify account\n2. Make payment\n3. Create family group\n4. Invite members\n5. Each member creates their profile",
-    },
-    {
-      id: "3",
-      name: "Microsoft 365",
-      category: "productivity",
-      status: "active",
-      description: "Productivity cloud that brings together best-in-class Office apps with powerful cloud services, device management, and advanced security.",
-      logoUrl: "/logos/microsoft.svg",
-      plans: [
-        {
-          id: "3-1",
-          name: "Personal",
-          maxUsers: 1,
-          price: 69.99,
-          recurrence: "yearly",
-          features: ["Premium Office apps", "1TB OneDrive cloud storage", "Ad-free Outlook"],
-        },
-        {
-          id: "3-2",
-          name: "Family",
-          maxUsers: 6,
-          price: 99.99,
-          recurrence: "yearly",
-          features: ["For 6 people", "Works on Windows, macOS, iOS, and Android", "Each user gets 1TB of storage", "MS Office license", "Advanced security"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "JP", "KR", "DE", "FR", "IT", "BR"],
-      featured: false,
-      onboardingInstructions: "1. Create Microsoft account\n2. Purchase subscription\n3. Install Office apps on devices\n4. Invite family members\n5. Set up OneDrive folders",
-    },
-    {
-      id: "4",
-      name: "ChatGPT Plus",
-      category: "productivity",
-      status: "active",
-      description: "Premium access to ChatGPT with faster response times and priority access during peak times.",
-      logoUrl: "/logos/chatgpt.svg",
-      plans: [
-        {
-          id: "4-1",
-          name: "Premium",
-          maxUsers: 1,
-          price: 20.00,
-          recurrence: "monthly",
-          features: ["Access to GPT-4", "Priority access during peak times", "Faster response time", "Early access to new features"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "JP", "KR", "DE", "FR", "IT"],
-      featured: true,
-      onboardingInstructions: "1. Create OpenAI account\n2. Subscribe to ChatGPT Plus\n3. Share login credentials\n4. Create usage schedule for members",
-    },
-    {
-      id: "5",
-      name: "Adobe Creative Cloud",
-      category: "productivity",
-      status: "inactive",
-      description: "Collection of creative desktop and mobile apps for photography, design, video, web, UX, and more.",
-      logoUrl: "/logos/adobe.svg",
-      plans: [
-        {
-          id: "5-1",
-          name: "Photography",
-          maxUsers: 1,
-          price: 9.99,
-          recurrence: "monthly",
-          features: ["Lightroom", "Photoshop", "20GB cloud storage"],
-        },
-        {
-          id: "5-2",
-          name: "All Apps",
-          maxUsers: 1,
-          price: 52.99,
-          recurrence: "monthly",
-          features: ["20+ creative apps including Photoshop, Illustrator, and Premiere Pro", "100GB cloud storage", "Adobe Fonts"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "DE", "FR", "IT"],
-      featured: false,
-      onboardingInstructions: "1. Create Adobe ID\n2. Purchase subscription\n3. Install desktop apps\n4. Share login credentials\n5. Create usage schedule",
-    },
-    {
-      id: "6",
-      name: "Udemy Pro",
-      category: "education",
-      status: "pending-review",
-      description: "Online learning platform with thousands of courses on programming, data science, business, and more.",
-      logoUrl: "/logos/udemy.svg",
-      plans: [
-        {
-          id: "6-1",
-          name: "Personal Plan",
-          maxUsers: 1,
-          price: 29.99,
-          recurrence: "monthly",
-          features: ["Access to 7,000+ courses", "Offline viewing", "Certification", "Practice tests"],
-        },
-      ],
-      availableCountries: ["US", "UK", "CA", "AU", "JP", "KR", "DE", "FR", "IT", "BR", "IN"],
-      featured: false,
-      onboardingInstructions: "1. Create Udemy account\n2. Subscribe to Personal Plan\n3. Share login credentials\n4. Create usage schedule for members",
-    },
-  ];
+  const [newFeature, setNewFeature] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
-  const filteredServices = services.filter((service) => {
-    const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || service.category === selectedCategory;
-    const matchesStatus = !selectedStatus || service.status === selectedStatus;
+  // Load services on component mount
+  useEffect(() => {
+    const loadServices = async () => {
+      setIsLoading(true);
+      try {
+        await fetchServices();
+      } catch (error) {
+        toast({
+          title: "Error loading services",
+          description: "Failed to load services. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+    loadServices();
+  }, [fetchServices, toast]);
 
+  // Service handlers
   const handleAddNewService = () => {
-    setIsNewService(true);
     setCurrentService({
-      id: String(services.length + 1),
+      id: "",
       name: "",
-      category: "entertainment",
-      status: "pending-review",
       description: "",
-      logoUrl: "",
-      plans: [],
-      availableCountries: [],
+      website: undefined,
+      logo: undefined,
+      category: "OTHER",
+      maxMembers: undefined,
+      termsUrl: undefined,
+      privacyUrl: undefined,
+      supportUrl: undefined,
+      features: [],
+      allowedCountries: [],
+      status: "INACTIVE",
       featured: false,
-      onboardingInstructions: "",
+      plans: [],
     });
+    setIsNewService(true);
     setIsServiceDialogOpen(true);
   };
 
   const handleEditService = (service: Service) => {
+    setCurrentService({ ...service });
     setIsNewService(false);
-    setCurrentService(service);
     setIsServiceDialogOpen(true);
   };
 
+  const handleToggleStatus = async (service: Service) => {
+    setIsSubmitting(true);
+    try {
+      const newStatus: ServiceStatus = service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+      await updateServiceStatus(service.id, newStatus);
+      toast({
+        title: "Service updated",
+        description: `${service.name} is now ${newStatus}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error updating service",
+        description: "Failed to update service status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleFeatured = async (service: Service) => {
+    setIsSubmitting(true);
+    try {
+      await updateServiceFeatured(service.id, !service.featured);
+      toast({
+        title: "Service updated",
+        description: service.featured 
+          ? `${service.name} removed from featured services` 
+          : `${service.name} added to featured services`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error updating service",
+        description: "Failed to update featured status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDeleteService = (serviceId: string) => {
+    setServiceToDelete(serviceId);
+    setPlanToDelete(null);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleServiceInputChange = (field: keyof Service, value: any) => {
+    if (currentService) {
+      setCurrentService({
+        ...currentService,
+        [field]: value
+      });
+    }
+  };
+
+  const handleSaveService = async () => {
+    if (!currentService) return;
+    
+    setIsSubmitting(true);
+    try {
+      if (isNewService) {
+        await addService(currentService);
+        toast({
+          title: "Service created",
+          description: `${currentService.name} has been created successfully`,
+        });
+      } else {
+        await updateService(currentService);
+        toast({
+          title: "Service updated",
+          description: `${currentService.name} has been updated successfully`,
+        });
+      }
+      setIsServiceDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error saving service",
+        description: "Failed to save service. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete) return;
+    
+    setIsSubmitting(true);
+    try {
+      await deleteService(serviceToDelete);
+      toast({
+        title: "Service deleted",
+        description: "The service has been deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error deleting service",
+        description: "Failed to delete service. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setServiceToDelete(null);
+    }
+  };
+
+  // Plan handlers
   const handleAddNewPlan = () => {
     if (!currentService) return;
     
     setCurrentPlan({
-      id: `${currentService.id}-${currentService.plans.length + 1}`,
+      id: "",
       name: "",
       maxUsers: 1,
       price: 0,
       recurrence: "monthly",
-      features: [],
+      features: []
     });
     setIsPlanDialogOpen(true);
   };
 
-  const handleEditPlan = (plan: ServicePlan) => {
-    setCurrentPlan(plan);
+  const handleEditPlan = (plan: any) => {
+    setCurrentPlan({
+      id: plan.id,
+      name: plan.name,
+      maxUsers: plan.maxMembers,
+      price: plan.price,
+      recurrence: plan.cycle?.toLowerCase() === "MONTHLY" ? "monthly" : "yearly",
+      features: plan.features || []
+    });
     setIsPlanDialogOpen(true);
   };
 
-  const getCategoryLabel = (category: ServiceCategory) => {
+  const confirmDeletePlan = (serviceId: string, planId: string) => {
+    setServiceToDelete(serviceId);
+    setPlanToDelete(planId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handlePlanInputChange = (field: keyof ServicePlan, value: any) => {
+    if (currentPlan) {
+      setCurrentPlan({
+        ...currentPlan,
+        [field]: value
+      });
+    }
+  };
+
+  const handleAddFeature = () => {
+    if (!currentPlan || !newFeature.trim()) return;
+    
+    setCurrentPlan({
+      ...currentPlan,
+      features: [...currentPlan.features, newFeature.trim()]
+    });
+    setNewFeature("");
+  };
+
+  const handleRemoveFeature = (index: number) => {
+    if (!currentPlan) return;
+    
+    setCurrentPlan({
+      ...currentPlan,
+      features: currentPlan.features.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleSavePlan = async () => {
+    if (!currentService || !currentPlan) return;
+    
+    // Convert UI format to API format
+    const apiPlan = {
+      id: currentPlan.id,
+      name: currentPlan.name,
+      maxMembers: currentPlan.maxUsers,
+      price: currentPlan.price,
+      cycle: currentPlan.recurrence.toUpperCase(),
+      features: currentPlan.features
+    };
+    
+    setIsSubmitting(true);
+    try {
+      if (!currentPlan.id) {
+        await addServicePlan(currentService.id, apiPlan);
+        toast({
+          title: "Plan added",
+          description: `${currentPlan.name} plan has been added to ${currentService.name}`,
+        });
+      } else {
+        await updateServicePlan(currentService.id, currentPlan.id, apiPlan);
+        toast({
+          title: "Plan updated",
+          description: `${currentPlan.name} plan has been updated`,
+        });
+      }
+      setIsPlanDialogOpen(false);
+      
+      // Refresh the current service to show updated plans
+      if (!isNewService) {
+        const updatedServices:any = await fetchServices();
+        const refreshedService = updatedServices.find(s => s.id === currentService.id);
+        if (refreshedService) {
+          setCurrentService(refreshedService);
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error saving plan",
+        description: "Failed to save plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    if (!serviceToDelete || !planToDelete) return;
+    
+    setIsSubmitting(true);
+    try {
+      await deleteServicePlan(serviceToDelete, planToDelete);
+      toast({
+        title: "Plan deleted",
+        description: "The plan has been deleted successfully",
+      });
+      
+      // Refresh the current service to show updated plans
+      if (currentService && currentService.id === serviceToDelete) {
+        const updatedServices:any = await fetchServices();
+        const refreshedService = updatedServices.find(s => s.id === serviceToDelete);
+        if (refreshedService) {
+          setCurrentService(refreshedService);
+        }
+      }
+      
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error deleting plan",
+        description: "Failed to delete plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setServiceToDelete(null);
+      setPlanToDelete(null);
+    }
+  };
+
+  const filteredServices = services
+    .filter(service => {
+      // Search filter
+      if (searchTerm && !service.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !service.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Category filter
+      if (selectedCategory && service.category !== selectedCategory.toUpperCase()) {
+        return false;
+      }
+      
+      // Status filter
+      if (selectedStatus && service.status !== selectedStatus) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const getCategoryLabel = (category: string) => {
     switch (category) {
-      case "entertainment":
-        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Entertainment</Badge>;
-      case "productivity":
+      case "STREAMING":
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Streaming</Badge>;
+      case "GAMING":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Gaming</Badge>;
+      case "PRODUCTIVITY":
         return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Productivity</Badge>;
-      case "education":
+      case "EDUCATION":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Education</Badge>;
-      case "other":
+      case "MUSIC":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Music</Badge>;
+      case "FITNESS":
+        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Fitness</Badge>;
+      case "OTHER":
         return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Other</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{category}</Badge>;
     }
   };
   
   const getStatusBadge = (status: ServiceStatus) => {
     switch (status) {
-      case "active":
+      case "ACTIVE":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>;
-      case "inactive":
+      case "INACTIVE":
         return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Inactive</Badge>;
-      case "pending-review":
+      case "PENDING":
         return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending Review</Badge>;
+      case "REVIEW":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Review</Badge>;
     }
   };
 
@@ -382,15 +514,18 @@ export default function ManageServices() {
                   value={selectedCategory}
                   onValueChange={setSelectedCategory}
                 >
-                  <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="entertainment">Entertainment</SelectItem>
-                    <SelectItem value="productivity">Productivity</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="STREAMING">Streaming</SelectItem>
+                    <SelectItem value="GAMING">Gaming</SelectItem>
+                    <SelectItem value="PRODUCTIVITY">Productivity</SelectItem>
+                    <SelectItem value="EDUCATION">Education</SelectItem>
+                    <SelectItem value="MUSIC">Music</SelectItem>
+                    <SelectItem value="FITNESS">Fitness</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -398,14 +533,15 @@ export default function ManageServices() {
                   value={selectedStatus}
                   onValueChange={setSelectedStatus}
                 >
-                  <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending-review">Pending Review</SelectItem>
+                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="REVIEW">Review</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -413,112 +549,126 @@ export default function ManageServices() {
               {/* Services List */}
               <div className="rounded-md border">
                 <div className="relative w-full overflow-auto">
-                  <table className="w-full caption-bottom text-sm">
-                    <thead>
-                      <tr className="border-b transition-colors hover:bg-muted/50">
-                        <th className="h-12 px-4 text-left align-middle font-medium">Service</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium">Category</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium">Plans</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium">Featured</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredServices.map((service) => (
-                        <tr 
-                          key={service.id} 
-                          className="border-b transition-colors hover:bg-muted/50"
-                        >
-                          <td className="p-4 align-middle">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
-                                {service.logoUrl ? (
-                                  <img 
-                                    src={service.logoUrl} 
-                                    alt={service.name} 
-                                    className="h-6 w-6 object-contain"
-                                  />
-                                ) : (
-                                  <Settings className="h-5 w-5" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="font-medium">{service.name}</div>
-                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                  {service.description}
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="mt-2 text-sm text-muted-foreground">Loading services...</p>
+                    </div>
+                  ) : filteredServices.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <p className="text-muted-foreground">No services found matching your criteria.</p>
+                    </div>
+                  ) : (
+                    <table className="w-full caption-bottom text-sm">
+                      <thead>
+                        <tr className="border-b transition-colors hover:bg-muted/50">
+                          <th className="h-12 px-4 text-left align-middle font-medium">Service</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Category</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Plans</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Featured</th>
+                          <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredServices.map((service) => (
+                          <tr 
+                            key={service.id} 
+                            className="border-b transition-colors hover:bg-muted/50"
+                          >
+                            <td className="p-4 align-middle">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                                  {service.logo ? (
+                                    <img 
+                                      src={service.logo} 
+                                      alt={service.name} 
+                                      className="h-6 w-6 object-contain"
+                                    />
+                                  ) : (
+                                    <Settings className="h-5 w-5" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="font-medium">{service.name}</div>
+                                  <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                    {service.description}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-4 align-middle">
-                            {getCategoryLabel(service.category)}
-                          </td>
-                          <td className="p-4 align-middle">
-                            {getStatusBadge(service.status)}
-                          </td>
-                          <td className="p-4 align-middle">
-                            {service.plans.length}
-                          </td>
-                          <td className="p-4 align-middle">
-                            {service.featured ? (
-                              <Check className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <X className="h-5 w-5 text-red-600" />
-                            )}
-                          </td>
-                          <td className="p-4 text-right align-middle">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditService(service)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  <span>Edit Service</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  {service.status === "active" ? (
-                                    <>
-                                      <X className="mr-2 h-4 w-4" />
-                                      <span>Deactivate</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check className="mr-2 h-4 w-4" />
-                                      <span>Activate</span>
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  {service.featured ? (
-                                    <>
-                                      <X className="mr-2 h-4 w-4" />
-                                      <span>Remove from Featured</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check className="mr-2 h-4 w-4" />
-                                      <span>Add to Featured</span>
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash className="mr-2 h-4 w-4" />
-                                  <span>Delete Service</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            </td>
+                            <td className="p-4 align-middle">
+                              {getCategoryLabel(service.category as string)}
+                            </td>
+                            <td className="p-4 align-middle">
+                              {getStatusBadge(service.status as ServiceStatus)}
+                            </td>
+                            <td className="p-4 align-middle">
+                              {service.plans.length}
+                            </td>
+                            <td className="p-4 align-middle">
+                              {service.featured ? (
+                                <Check className="h-5 w-5 text-green-600" />
+                              ) : (
+                                <X className="h-5 w-5 text-red-600" />
+                              )}
+                            </td>
+                            <td className="p-4 text-right align-middle">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleEditService(service)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Edit Service</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleToggleStatus(service)}>
+                                    {service.status === "ACTIVE" ? (
+                                      <>
+                                        <X className="mr-2 h-4 w-4" />
+                                        <span>Deactivate</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        <span>Activate</span>
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleToggleFeatured(service)}>
+                                    {service.featured ? (
+                                      <>
+                                        <X className="mr-2 h-4 w-4" />
+                                        <span>Remove from Featured</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        <span>Add to Featured</span>
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    className="text-red-600" 
+                                    onClick={() => confirmDeleteService(service.id)}
+                                  >
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    <span>Delete Service</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             </div>
@@ -554,45 +704,57 @@ export default function ManageServices() {
                         id="name"
                         placeholder="e.g. Netflix, Spotify"
                         value={currentService.name}
+                        onChange={(e) => handleServiceInputChange("name", e.target.value)}
                       />
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="category">Category</Label>
-                      <Select value={currentService.category}>
+                      <Select 
+                        value={currentService.category}
+                        onValueChange={(value) => handleServiceInputChange("category", value as 'STREAMING' | 'GAMING' | 'PRODUCTIVITY' | 'EDUCATION' | 'MUSIC' | 'FITNESS' | 'OTHER')}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="entertainment">Entertainment</SelectItem>
-                          <SelectItem value="productivity">Productivity</SelectItem>
-                          <SelectItem value="education">Education</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="STREAMING">Streaming</SelectItem>
+                          <SelectItem value="GAMING">Gaming</SelectItem>
+                          <SelectItem value="PRODUCTIVITY">Productivity</SelectItem>
+                          <SelectItem value="EDUCATION">Education</SelectItem>
+                          <SelectItem value="MUSIC">Music</SelectItem>
+                          <SelectItem value="FITNESS">Fitness</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
-                      <Select value={currentService.status}>
+                      <Select 
+                        value={currentService.status}
+                        onValueChange={(value) => handleServiceInputChange("status", value as 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'REVIEW')}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                          <SelectItem value="pending-review">Pending Review</SelectItem>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="REVIEW">Review</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="logoUrl">Logo URL</Label>
+                      <Label htmlFor="logo">Logo URL</Label>
                       <div className="flex gap-2">
                         <Input
-                          id="logoUrl"
+                          id="logo"
                           placeholder="/logos/service.svg"
-                          value={currentService.logoUrl}
+                          value={currentService.logo}
+                          onChange={(e) => handleServiceInputChange("logo", e.target.value)}
                         />
                         <Button size="icon" variant="outline">
                           <ImagePlus className="h-5 w-5" />
@@ -606,22 +768,68 @@ export default function ManageServices() {
                         id="description"
                         placeholder="Provide a brief description of the service"
                         value={currentService.description}
+                        onChange={(e) => handleServiceInputChange("description", e.target.value)}
                         rows={3}
                       />
                     </div>
                     
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="onboarding">Onboarding Instructions</Label>
-                      <Textarea
-                        id="onboarding"
-                        placeholder="Step-by-step instructions for setting up and sharing this service"
-                        value={currentService.onboardingInstructions}
-                        rows={5}
+                      <Label htmlFor="website">Website URL</Label>
+                      <Input
+                        id="website"
+                        placeholder="e.g. https://www.netflix.com"
+                        value={currentService.website}
+                        onChange={(e) => handleServiceInputChange("website", e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="termsUrl">Terms URL</Label>
+                      <Input
+                        id="termsUrl"
+                        placeholder="e.g. https://www.netflix.com/terms"
+                        value={currentService.termsUrl}
+                        onChange={(e) => handleServiceInputChange("termsUrl", e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="privacyUrl">Privacy URL</Label>
+                      <Input
+                        id="privacyUrl"
+                        placeholder="e.g. https://www.netflix.com/privacy"
+                        value={currentService.privacyUrl}
+                        onChange={(e) => handleServiceInputChange("privacyUrl", e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="supportUrl">Support URL</Label>
+                      <Input
+                        id="supportUrl"
+                        placeholder="e.g. https://www.netflix.com/support"
+                        value={currentService.supportUrl}
+                        onChange={(e) => handleServiceInputChange("supportUrl", e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="maxMembers">Max Members</Label>
+                      <Input
+                        id="maxMembers"
+                        type="number"
+                        min="0"
+                        value={currentService.maxMembers}
+                        onChange={(e) => handleServiceInputChange("maxMembers", parseInt(e.target.value))}
                       />
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="featured" checked={currentService.featured} />
+                      <Switch 
+                        id="featured" 
+                        checked={currentService.featured}
+                        onCheckedChange={(value) => handleServiceInputChange("featured", value)}
+                      />
                       <Label htmlFor="featured">Feature this service on the homepage</Label>
                     </div>
                   </div>
@@ -654,14 +862,19 @@ export default function ManageServices() {
                           <div>
                             <h4 className="font-medium">{plan.name}</h4>
                             <p className="text-sm text-muted-foreground">
-                              {plan.maxUsers} users | ${plan.price}/{plan.recurrence === "monthly" ? "mo" : "yr"}
+                              {plan.maxMembers} members | ${plan.price}/{plan.cycle === "MONTHLY" ? "mo" : "yr"}
                             </p>
                           </div>
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleEditPlan(plan)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" className="text-red-600">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-red-600"
+                              onClick={() => confirmDeletePlan(currentService.id, plan.id)}
+                            >
                               <Trash className="h-4 w-4" />
                             </Button>
                           </div>
@@ -676,7 +889,10 @@ export default function ManageServices() {
                 <Button variant="outline" asChild>
                   <DialogClose>Cancel</DialogClose>
                 </Button>
-                <Button>Save Changes</Button>
+                <Button onClick={handleSaveService} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -703,16 +919,18 @@ export default function ManageServices() {
                       id="planName"
                       placeholder="e.g. Basic, Premium"
                       value={currentPlan.name}
+                      onChange={(e) => handlePlanInputChange("name", e.target.value)}
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="maxUsers">Max Users</Label>
+                    <Label htmlFor="maxMembers">Max Members</Label>
                     <Input
-                      id="maxUsers"
+                      id="maxMembers"
                       type="number"
                       min="1"
                       value={currentPlan.maxUsers}
+                      onChange={(e) => handlePlanInputChange("maxUsers", parseInt(e.target.value))}
                     />
                   </div>
                   
@@ -724,12 +942,16 @@ export default function ManageServices() {
                       min="0"
                       step="0.01"
                       value={currentPlan.price}
+                      onChange={(e) => handlePlanInputChange("price", parseFloat(e.target.value))}
                     />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="recurrence">Billing Cycle</Label>
-                    <Select value={currentPlan.recurrence}>
+                    <Select 
+                      value={currentPlan.recurrence}
+                      onValueChange={(value) => handlePlanInputChange("recurrence", value as "monthly" | "yearly")}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -747,14 +969,29 @@ export default function ManageServices() {
                     {currentPlan.features.map((feature, index) => (
                       <div key={index} className="flex items-center justify-between border-b p-2 last:border-0">
                         <span>{feature}</span>
-                        <Button size="sm" variant="ghost">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => handleRemoveFeature(index)}
+                        >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
                     <div className="flex items-center p-2">
-                      <Input placeholder="Add a feature..." className="border-0 shadow-none" />
-                      <Button size="sm" variant="ghost">
+                      <Input 
+                        placeholder="Add a feature..." 
+                        className="border-0 shadow-none"
+                        value={newFeature}
+                        onChange={(e) => setNewFeature(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddFeature();
+                          }
+                        }}
+                      />
+                      <Button size="sm" variant="ghost" onClick={handleAddFeature}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -766,11 +1003,41 @@ export default function ManageServices() {
                 <Button variant="outline" asChild>
                   <DialogClose>Cancel</DialogClose>
                 </Button>
-                <Button>Save Plan</Button>
+                <Button onClick={handleSavePlan} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Plan
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {planToDelete ? "Delete Plan" : "Delete Service"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {planToDelete 
+                  ? "Are you sure you want to delete this plan? This action cannot be undone."
+                  : "Are you sure you want to delete this service? All associated plans will also be deleted. This action cannot be undone."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={planToDelete ? handleDeletePlan : handleDeleteService}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {planToDelete ? "Delete Plan" : "Delete Service"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
