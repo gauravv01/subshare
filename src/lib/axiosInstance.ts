@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Use the environment variable or fallback to localhost
+const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -9,6 +12,7 @@ const axiosInstance = axios.create({
   timeout: 15000,
 });
 
+// Add request interceptor to include auth token
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -30,6 +34,5 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 
 export default axiosInstance;
