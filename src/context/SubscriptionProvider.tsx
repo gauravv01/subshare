@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
 import axiosInstance from '../lib/axiosInstance';
-
 interface Subscription {
   id: string;
   title: string;
@@ -62,23 +61,26 @@ interface SubscriptionContextType {
   cancelSubscription: (id: string) => Promise<void>;
   inviteMember: (subscriptionId: string, email: string) => Promise<void>;
   removeMember: (subscriptionId: string, userId: string) => Promise<void>;
+  joinSubscription: (subscriptionId: string) => Promise<void>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [ownedSubscriptions, setOwnedSubscriptions] = useState<Subscription[]>([]);
+  const [memberSubscriptions, setMemberSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const ownedSubscriptions = subscriptions.filter(sub => sub.ownerId === 'currentUserId');
-  const memberSubscriptions = subscriptions.filter(sub => sub.ownerId !== 'currentUserId');
+  const currentUserId = localStorage.getItem('userId');
 
   const fetchSubscriptions = async () => {
     setIsLoading(true);
     try {
       const response = await axiosInstance.get('/subscriptions');
       setSubscriptions(response.data);
+      setOwnedSubscriptions(response.data.filter((sub:any ) => sub.ownerId === currentUserId));
+      setMemberSubscriptions(response.data.filter((sub:any) => sub.members.some((member:any) => member.userId === currentUserId)));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch subscriptions');
     } finally {
@@ -192,6 +194,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  const joinSubscription = async (subscriptionId: string) => {
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.post(`/subscriptions/${subscriptionId}/join`);
+      
+      // Update local state
+      await fetchSubscriptions(); // Refresh subscriptions to get the updated list
+      
+      return response.data;
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to join subscription');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SubscriptionContext.Provider
       value={{
@@ -205,7 +224,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         updateSubscription,
         cancelSubscription,
         inviteMember,
-        removeMember
+        removeMember,
+        joinSubscription,
       }}
     >
       {children}

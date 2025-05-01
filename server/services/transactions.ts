@@ -3,9 +3,10 @@ import { z } from "zod";
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
-  currency: z.string().default('USD'),
+  userId: z.string(),
   subscriptionId: z.string(),
-  paymentMethodId: z.string(),
+  paymentMethodId: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const getTransactions = async (userId: string) => {
@@ -21,28 +22,55 @@ const getTransactions = async (userId: string) => {
   return transactions;
 };
 
-const createPayment = async (userId: string, data: {
+const getMemberTransactions = async (memberId: string) => {
+  const transactions = await prisma.$queryRaw`
+    SELECT * FROM "Transaction" 
+    WHERE "memberId" = ${memberId}
+    ORDER BY "createdAt" DESC
+  `;
+  
+  return transactions;
+};
+
+const createPayment = async (data: {
   amount: number;
-  currency?: string;
+  userId: string;
   subscriptionId: string;
-  paymentMethodId: string;
+  paymentMethodId?: string;
+  description?: string;
 }) => {
   const validated = paymentSchema.parse(data);
-
+  
+  // Create transaction data with required fields
+  const transactionData: any = {
+    amount: validated.amount,
+    type: 'PAYMENT',
+    status: 'COMPLETED',
+    description: validated.description || 'Subscription payment',
+    user: { connect: { id: validated.userId } },
+    subscription: { connect: { id: validated.subscriptionId } },
+  };
+  
+  // Add payment method if provided
+  if (validated.paymentMethodId) {
+    // For default payment methods, don't try to connect to database
+    if (['credit-card', 'paypal', 'bank-transfer'].includes(validated.paymentMethodId)) {
+      // Just store the payment method type
+      transactionData.paymentMethodType = validated.paymentMethodId;
+    } else {
+      // Connect to an actual payment method in the database
+      transactionData.paymentMethod = { connect: { id: validated.paymentMethodId } };
+    }
+  }
+  
   const transaction = await prisma.transaction.create({
-    data: {
-      ...validated,
-      userId,
-      type: 'PAYMENT',
-      status: 'COMPLETED',
-      processedAt: new Date(),
-    },
+    data: transactionData,
     include: {
       subscription: true,
       paymentMethod: true,
-    },
+    } as any
   });
-
+  
   return transaction;
 };
 
@@ -82,6 +110,7 @@ const createRefund = async (transactionId: string, userId: string) => {
 
 export default {
   getTransactions,
+  getMemberTransactions,
   createPayment,
   createRefund,
 }; 

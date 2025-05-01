@@ -24,6 +24,7 @@ interface Member {
     };
   };
   accessProfile: string;
+  nextPaymentDate?: string;
 }
 
 interface MemberContextType {

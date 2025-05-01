@@ -46,6 +46,7 @@ export function RegisterForm() {
               placeholder="Email"
               value={email}
               required
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div className="space-y-2">

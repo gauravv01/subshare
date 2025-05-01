@@ -96,8 +96,10 @@ export default function UserDashboard() {
   // Calculate annual savings/profit
   const annualSavingsProfit = netMonthlyBalance * 12;
 
+
+
   return (
-    <DashboardLayout userRole="unified">
+    <DashboardLayout >
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">My Dashboard</h1>
@@ -130,7 +132,7 @@ export default function UserDashboard() {
               Refresh
             </Button>
             <Button asChild>
-              <Link to="/account/create-subscription">
+              <Link to="/create-subscription">
                 <Plus className="mr-2 h-4 w-4" /> Create Subscription
               </Link>
             </Button>
@@ -218,7 +220,7 @@ export default function UserDashboard() {
                     You don't own any subscriptions yet.
                     <div className="mt-4">
                       <Button asChild>
-                        <Link to="/account/create-subscription">Create Subscription</Link>
+                        <Link to="/create-subscription">Create Subscription</Link>
                       </Button>
                     </div>
                   </div>
@@ -278,7 +280,7 @@ export default function UserDashboard() {
                           
                           <div className="flex justify-end gap-2 mt-4">
                             <Button variant="outline" size="sm" asChild>
-                              <Link to={`/account/subscriptions/${subscription.id}`}>Manage</Link>
+                              <Link to={`/manage-members`}>Manage</Link>
                             </Button>
                           </div>
                         </div>
@@ -303,7 +305,7 @@ export default function UserDashboard() {
                     You haven't joined any subscriptions yet.
                     <div className="mt-4">
                       <Button asChild>
-                        <Link to="/browse">Browse Subscriptions</Link>
+                        <Link to="/connect">Browse Subscriptions</Link>
                       </Button>
                     </div>
                   </div>
@@ -361,7 +363,7 @@ export default function UserDashboard() {
                           
                           <div className="flex justify-end gap-2 mt-4">
                             <Button variant="outline" size="sm" asChild>
-                              <Link to={`/account/memberships/${membership?.id}`}>View Details</Link>
+                              <Link to={`/manage-members`}>View Details</Link>
                             </Button>
                           </div>
                         </div>

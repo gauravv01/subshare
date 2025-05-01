@@ -242,6 +242,7 @@ model Membership {
 
   // Access details
   accessProfile String? // e.g., "Profile 2" for Netflix
+  Transaction   Transaction[]
 
   @@unique([userId, subscriptionId])
 }
@@ -261,6 +262,8 @@ enum MembershipStatus {
 
 model Transaction {
   id          String            @id @default(cuid())
+  member      Membership?       @relation(fields: [memberId], references: [id])
+  memberId    String?
   amount      Float
   currency    String            @default("USD")
   status      TransactionStatus
@@ -272,7 +275,7 @@ model Transaction {
   user            User           @relation(fields: [userId], references: [id])
   userId          String
   subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
-  subscriptionId  String?
+  subscriptionId  String
   paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
   paymentMethodId String?
 }

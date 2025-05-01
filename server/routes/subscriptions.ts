@@ -34,4 +34,14 @@ router.get('/:id', getUser, async (req: any, res) => {
   }
 });
 
+// join
+router.post('/:id/join', getUser, async (req: any, res) => {
+  try {
+    const subscription = await subscriptionService.joinSubscription(req.params.id, req.user.id);
+    res.status(200).json(subscription);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
 export default router; 

@@ -328,7 +328,7 @@ export default function Messages() {
   
   if (isLoading || messagesLoading || subscriptionsLoading) {
     return (
-      <DashboardLayout userRole="unified">
+      <DashboardLayout >
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -340,7 +340,7 @@ export default function Messages() {
   }
 
   return (
-    <DashboardLayout userRole="unified">
+    <DashboardLayout >
       <div className="space-y-4 p-4 md:p-0">
         <div className="flex justify-between items-center">
           <div>

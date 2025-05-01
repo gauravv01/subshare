@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userRole', response.data.user.role);
+      localStorage.setItem('userId', response.data.user.id);
       setUser(response.data.user);
     } catch (error) {
       throw new Error('Login failed');
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userRole', response.data.user.role);
+      localStorage.setItem('userId', response.data.user.id);
       setUser(response.data.user);
     } catch (error) {
       throw new Error('Registration failed');

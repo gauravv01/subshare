@@ -34,10 +34,11 @@ interface TransactionContextType {
   getTransactionById: (id: string) => Promise<Transaction>;
   createPayment: (data: {
     amount: number;
-    currency?: string;
+    userId: string;
     subscriptionId: string;
-    paymentMethodId: string;
-  }) => Promise<void>;
+    paymentMethodId?: string;
+    description?: string;
+  }) => Promise<any>;
   requestRefund: (transactionId: string) => Promise<void>;
   downloadInvoice: (transactionId: string) => Promise<void>;
   filterTransactions: (filters: {
@@ -82,14 +83,16 @@ export const TransactionProvider = ({ children }: { children: React.ReactNode })
 
   const createPayment = async (data: {
     amount: number;
-    currency?: string;
+    userId: string;
     subscriptionId: string;
-    paymentMethodId: string;
+    paymentMethodId?: string;
+    description?: string;
   }) => {
     setIsLoading(true);
     try {
       const response = await axiosInstance.post('/transactions/payment', data);
       setTransactions(prev => [response.data, ...prev]);
+      return response.data;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to process payment');
       throw err;

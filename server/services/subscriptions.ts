@@ -72,7 +72,7 @@ export const createSubscription = async (userId: string, data: any) => {
   });
   
   return subscription;
-};
+  };
 
 // Get all subscriptions
 export const getSubscriptions = async (userId: string) => {
@@ -148,9 +148,20 @@ export const getServices = async () => {
   return services;
 };
 
+// Join subscription
+export const joinSubscription = async (id: string, userId: string) => {
+  const subscription = await prisma.subscription.update({
+    where: { id },
+    data: { members: { create: { userId, role: "MEMBER", status: "ACTIVE" } } },
+  });
+  return subscription;
+};
+
+
 export default {
   createSubscription,
   getSubscriptions,
   getSubscriptionById,
   getServices,
+  joinSubscription,
 }; 
