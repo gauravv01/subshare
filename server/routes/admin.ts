@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAdminDashboardStats, getRecentUsers, getPopularServices, getServiceCounts, getUserCounts } from "../services/admin";
+import { getAdminDashboardStats, getRecentUsers, getPopularServices, getServiceCounts, getUserCounts,getUsers } from "../services/admin";
 import { getUser } from "../middleware/user";
 
 const router = Router();
@@ -9,5 +9,6 @@ router.get("/dashboard/recent-users", getUser, getRecentUsers);
 router.get("/dashboard/popular-services", getUser, getPopularServices);
 router.get("/dashboard/service-counts", getUser, getServiceCounts);
 router.get("/dashboard/user-counts", getUser, getUserCounts);
+router.get("/users",getUser,getUsers)
 
 export default router;

@@ -33,6 +33,7 @@ interface ProfileContextType {
   updateNotificationPreferences: (preferences: any) => Promise<void>;
   notificationPreferences: any;
   updatePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  updateOtherProfile: (id: string, data: Partial<Profile>) => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -95,8 +96,20 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     } finally {
       setIsLoading(false);
     }
-  };
+    };
 
+  const updateOtherProfile = async (id: string, data: Partial<Profile>) => {
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.put(`/profile/other-profile/${id}`, data);
+      setProfile(response.data);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update other profile');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <ProfileContext.Provider 
       value={{ 
@@ -107,7 +120,8 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         updateProfile,
         updateNotificationPreferences,
         notificationPreferences,
-        updatePassword
+        updatePassword,
+        updateOtherProfile
       }}
     >
       {children}

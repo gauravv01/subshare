@@ -51,6 +51,10 @@ interface ServiceContextType {
   deleteServicePlan: (serviceId: string, planId: string) => Promise<void>;
   updateServiceStatus: (id: string, status: string) => Promise<void>;
   updateServiceFeatured: (id: string, featured: boolean) => Promise<void>;
+  addAccessField: (serviceId: string, field: any) => Promise<void>;
+  updateAccessField: (serviceId: string, fieldId: string, field: any) => Promise<void>;
+  deleteAccessField: (serviceId: string, fieldId: string) => Promise<void>;
+  getAccessFields: (serviceId: string) => Promise<any[]>;
 }
 
 const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
@@ -118,12 +122,14 @@ export const ServiceProvider = ({ children }: { children: React.ReactNode }) => 
   const addService = async (service: Service) => {
     const serviceToAdd = {
       ...service,
-      website: service.website || "",
-      logo: service.logo || "",
-      termsUrl: service.termsUrl || "",
-      privacyUrl: service.privacyUrl || "",
-      supportUrl: service.supportUrl || "",
-      maxMembers: service.maxMembers || 0
+      website: service.website && service.website.trim() ? service.website : undefined,
+      logo: service.logo || undefined,
+      termsUrl: service.termsUrl && service.termsUrl.trim() ? service.termsUrl : undefined,
+      privacyUrl: service.privacyUrl && service.privacyUrl.trim() ? service.privacyUrl : undefined,
+      supportUrl: service.supportUrl && service.supportUrl.trim() ? service.supportUrl : undefined,
+      maxMembers: service.maxMembers || 0,
+      features: service.features || [],
+      allowedCountries: service.allowedCountries || []
     };
     
     const response = await axiosInstance.post('/services', serviceToAdd);
@@ -134,12 +140,14 @@ export const ServiceProvider = ({ children }: { children: React.ReactNode }) => 
   const updateService = async (service: Service) => {
     const serviceToUpdate = {
       ...service,
-      website: service.website || "",
-      logo: service.logo || "",
-      termsUrl: service.termsUrl || "",
-      privacyUrl: service.privacyUrl || "",
-      supportUrl: service.supportUrl || "",
-      maxMembers: service.maxMembers || 0
+      website: service.website && service.website.trim() ? service.website : undefined,
+      logo: service.logo || undefined,
+      termsUrl: service.termsUrl && service.termsUrl.trim() ? service.termsUrl : undefined,
+      privacyUrl: service.privacyUrl && service.privacyUrl.trim() ? service.privacyUrl : undefined,
+      supportUrl: service.supportUrl && service.supportUrl.trim() ? service.supportUrl : undefined,
+      maxMembers: service.maxMembers || 0,
+      features: service.features || [],
+      allowedCountries: service.allowedCountries || []
     };
     
     const response = await axiosInstance.put(`/services/${service.id}`, serviceToUpdate);
@@ -177,11 +185,37 @@ export const ServiceProvider = ({ children }: { children: React.ReactNode }) => 
     setServices(services.map(s => s.id === id ? response.data : s));
   };
 
+  const addAccessField = async (serviceId: string, field: any) => {
+    const response = await axiosInstance.post(`/services/${serviceId}/access-fields`, field);
+    setSelectedService(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        accessFields: [...(prev.accessFields || []), response.data]
+      };
+    });
+  };
+
+  const updateAccessField = async (serviceId: string, fieldId: string, field: any) => {
+    const response = await axiosInstance.put(`/services/${serviceId}/access-fields/${fieldId}`, field);
+    setSelectedService(prev => prev ? { ...prev, accessFields: prev.accessFields?.map(f => f.id === fieldId ? response.data : f) } : null);
+  };
+
+  const deleteAccessField = async (serviceId: string, fieldId: string) => {
+    const response = await axiosInstance.delete(`/services/${serviceId}/access-fields/${fieldId}`);
+    setSelectedService(prev => prev ? { ...prev, accessFields: prev.accessFields?.filter(f => f.id !== fieldId) } : null);
+  };
+
+  const getAccessFields = async (serviceId: string) => {
+    const response = await axiosInstance.get(`/services/${serviceId}/access-fields`);
+    return response.data;
+  };
+  
   
   
 
 
-  
+
   
   
 
@@ -204,7 +238,11 @@ export const ServiceProvider = ({ children }: { children: React.ReactNode }) => 
         updateServicePlan,
         deleteServicePlan,
         updateServiceStatus,
-        updateServiceFeatured
+        updateServiceFeatured,
+        addAccessField,
+        updateAccessField,
+        deleteAccessField,
+        getAccessFields
       }}
     >
       {children}

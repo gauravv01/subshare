@@ -174,7 +174,7 @@ export default function CreateSubscription() {
   }
 
   return (
-    <DashboardLayout userRole="unified">
+    <DashboardLayout >
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Create Subscription</h1>
@@ -359,7 +359,7 @@ export default function CreateSubscription() {
                               </FormItem>
                               <FormItem className="flex items-center space-x-3 space-y-0">
                                 <FormControl>
-                                  <RadioGroupItem value="annually" />
+                                  <RadioGroupItem value="yearly" />
                                 </FormControl>
                                 <FormLabel className="font-normal">
                                   Annual Billing

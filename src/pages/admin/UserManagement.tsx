@@ -45,6 +45,7 @@ import { Label } from "../../components/ui/label";
 import { useToast } from "../../hooks/use-toast";
 import axiosInstance from "../../lib/axiosInstance";
 import { format } from "date-fns";
+import { useProfile } from "../../context/ProfileProvider";
 
 // Types
 type UserStatus = "ACTIVE" | "INACTIVE" | "BANNED" | "PENDING";
@@ -62,8 +63,27 @@ interface User {
   membershipCount?: number;
 }
 
+interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  country: string;
+  createdAt: Date;
+  updatedAt: Date;
+  phoneNumber: string;
+  language: string;
+  timezone: string;
+  twoFactorEnabled: boolean;
+  twoFactorMethod: string;
+  notificationPreferences: any;
+  
+}
+
 export default function UserManagement() {
   const { toast } = useToast();
+  const { profile,updateProfile, updateOtherProfile } = useProfile();
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
@@ -139,14 +159,21 @@ export default function UserManagement() {
     
     setIsSubmitting(true);
     try {
-      const response = await axiosInstance.put(`/admin/users/${selectedUser.id}`, userData);
+      // Convert userData to match Profile type
+      const profileData: Partial<Profile> = {
+        ...userData,
+        // Exclude createdAt or convert it to Date if needed
+        createdAt: userData.createdAt ? new Date(userData.createdAt) : undefined
+      };
       
-      // Update the user in the local state
+      await updateOtherProfile(selectedUser.id, profileData);
+      
+      // Update the local state
       setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...user, ...response.data } : user
+        user.id === selectedUser.id ? { ...user, ...userData } : user
       ));
       
-      setSelectedUser({ ...selectedUser, ...response.data });
+      setSelectedUser({ ...selectedUser, ...userData });
       
       toast({
         title: "User updated",
@@ -251,7 +278,7 @@ export default function UserManagement() {
 
   if (isLoading) {
     return (
-      <DashboardLayout userRole="admin">
+        <DashboardLayout >
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -263,7 +290,7 @@ export default function UserManagement() {
   }
 
   return (
-    <DashboardLayout userRole="admin">
+    <DashboardLayout >
       <div className="space-y-4 p-4 md:p-0">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -594,6 +621,7 @@ export default function UserManagement() {
                 role: formData.get('role') as UserRole,
                 status: formData.get('status') as UserStatus,
                 country: formData.get('country') as string,
+
               };
               handleUpdateUser(userData);
             }}>

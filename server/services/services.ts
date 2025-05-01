@@ -5,15 +5,24 @@ import  {ServiceStatus} from "@prisma/client";
 const serviceSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  website: z.string().url().optional(),
+  website: z.union([z.string().url(), z.literal("")]).optional(),
   logo: z.string().optional(),
   category: z.enum(['STREAMING', 'GAMING', 'PRODUCTIVITY', 'EDUCATION', 'MUSIC', 'FITNESS', 'OTHER']),
   maxMembers: z.number().optional(),
-  termsUrl: z.string().url().optional(),
-  privacyUrl: z.string().url().optional(),
-  supportUrl: z.string().url().optional(),
+  termsUrl: z.union([z.string().url(), z.literal("")]).optional(),
+  privacyUrl: z.union([z.string().url(), z.literal("")]).optional(),
+  supportUrl: z.union([z.string().url(), z.literal("")]).optional(),
+  // Remove these if they don't exist in your schema
   features: z.array(z.string()).optional(),
   allowedCountries: z.array(z.string()).optional(),
+});
+
+const accessFieldSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  required: z.boolean(),
+  type: z.enum(['TEXT', 'NUMBER', 'EMAIL', 'URL', 'DATE', 'TIME', 'BOOLEAN']),
+  placeholder: z.string().optional(),
 });
 
 const servicePlanSchema = z.object({
@@ -28,6 +37,7 @@ const getServices = async () => {
   const services = await prisma.service.findMany({
     include: {
       plans: true,
+   
     },
   });
   return services;
@@ -47,6 +57,7 @@ const getService = async (id: string) => {
           members: true,
         },
       },
+      accessFields: true,
     },
   });
 
@@ -59,9 +70,14 @@ const getService = async (id: string) => {
 
 const createService = async (data: any) => {
   const validated = serviceSchema.parse(data);
+  
+
 
   const service = await prisma.service.create({
-    data: validated,
+    data: {
+      ...validated,
+      // Don't include features and allowedCountries if they don't exist in your schema
+    },
     include: {
       plans: true,
     },
@@ -72,10 +88,37 @@ const createService = async (data: any) => {
 
 const updateService = async (id: string, data: any) => {
   const validated = serviceSchema.partial().parse(data);
+  
+  // Extract only the fields that exist in the Prisma schema
+  const { 
+    name, 
+    description, 
+    website, 
+    logo, 
+    category, 
+    maxMembers,
+    termsUrl,
+    privacyUrl,
+    supportUrl,
+    // Remove features and allowedCountries if they don't exist in your schema
+    // features,
+    // allowedCountries
+  } = validated;
 
   const service = await prisma.service.update({
     where: { id },
-    data: validated,
+    data: {
+      name,
+      description,
+      website,
+      logo,
+      category,
+      maxMembers,
+      termsUrl,
+      privacyUrl,
+      supportUrl,
+      // Don't include features and allowedCountries if they don't exist in your schema
+    },
     include: {
       plans: true,
     },
@@ -170,6 +213,72 @@ const updateServiceFeatured = async (id: string, featured: boolean) => {
   return service;
 };
 
+const addAccessField = async (serviceId: string, data: any) => {
+  const validated = accessFieldSchema.parse(data);
+  const service = await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      accessFields: {
+        create: validated,
+      },
+    },
+    include: {
+      accessFields: true,
+    },
+  });
+  
+  return service;
+};  
+
+const updateAccessField = async (serviceId: string, fieldId: string, data: any) => {
+  const validated = accessFieldSchema.partial().parse(data);
+  const service = await prisma.service.update({
+    where: { id: serviceId, accessFields: { some: { id: fieldId } } },
+    data: {
+      accessFields: {
+        update: {
+          where: { id: fieldId },
+          data: validated,
+        },
+      },
+    },
+    include: {
+      accessFields: true,
+    },
+  });
+  
+  return service;
+};
+
+const deleteAccessField = async (serviceId: string, fieldId: string) => {
+  const service = await prisma.service.update({
+    where: { id: serviceId, accessFields: { some: { id: fieldId } } },
+    data: {
+      accessFields: {
+        delete: {
+          id: fieldId,
+
+        },
+
+      },
+    },
+  });
+
+  return service;
+};
+
+const getAccessFields = async (serviceId: string) => {
+  const service = await prisma.service.findUnique({
+    where: { id: serviceId },
+    include: { accessFields: true },
+  });
+  return service?.accessFields;
+};
+
+
+
+
+
 export default {
   getServices,
   getService,
@@ -180,5 +289,9 @@ export default {
   updateServicePlan,
   deleteServicePlan,
   updateServiceStatus,
-  updateServiceFeatured
+  updateServiceFeatured,
+  addAccessField,
+  updateAccessField,
+  deleteAccessField,
+  getAccessFields,
 }; 

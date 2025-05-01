@@ -85,7 +85,7 @@ interface Service {
     features: string[];
     maxMembers: number;
   }>;
-  accessFields: AccessField[];
+  accessFields?: AccessField[];
 }
 
 // Create a new empty service template
@@ -108,6 +108,17 @@ const newService: Service = {
   accessFields: []
 };
 
+// Add this function to validate URLs
+const isValidUrl = (url: string) => {
+  if (!url || url.trim() === '') return true; // Empty is OK
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export default function ServiceDetails() {
   const params = useParams();
   const navigate = useNavigate();
@@ -120,6 +131,10 @@ export default function ServiceDetails() {
     addServicePlan, 
     updateServicePlan, 
     deleteServicePlan,
+    addAccessField,
+    updateAccessField, 
+    deleteAccessField,
+    getAccessFields,
     isLoading 
   } = useServices();
   
@@ -144,7 +159,7 @@ export default function ServiceDetails() {
         try {
           const serviceData = await fetchService(serviceId);
           
-          // Convert API service format to component format
+          // Initialize accessFields if it's undefined
           setService({
             ...serviceData,
             accessFields: serviceData.accessFields || []
@@ -155,13 +170,12 @@ export default function ServiceDetails() {
             description: "Failed to load service details. Please try again.",
             variant: "destructive",
           });
-          navigate("/admin/services");
         }
       }
     };
     
     loadService();
-  }, [isNewService, serviceId, fetchService, navigate, toast]);
+  }, [isNewService, serviceId]);
 
   // Handle service form changes
   const handleServiceChange = (field: keyof Service, value: any) => {
@@ -354,22 +368,31 @@ export default function ServiceDetails() {
   const handleDeleteField = (index: number) => {
     setService(prev => ({
       ...prev,
-      accessFields: prev.accessFields.filter((_, i) => i !== index)
+      accessFields: prev.accessFields?.filter((_, i) => i !== index)
     }));
     setIsDirty(true);
   };
 
-  const handleSaveField = () => {
-    if (editingField) {
+  const handleSaveField = async () => {
+    if (!editingField) return;
+    
+    // Convert field type to uppercase for API
+    const apiField = {
+      ...editingField,
+      type: editingField.type.toUpperCase()
+    };
+    
+    if (isNewService) {
+      // For new services, just update the local state
       setService(prev => {
-        const newFields = [...prev.accessFields];
+        const newFields = [...(prev.accessFields || [])];
         
         if (editingFieldIndex !== null) {
           // Update existing field
-          newFields[editingFieldIndex] = editingField;
+          newFields[editingFieldIndex] = apiField;
         } else {
           // Add new field
-          newFields.push(editingField);
+          newFields.push(apiField);
         }
         
         return {
@@ -377,11 +400,44 @@ export default function ServiceDetails() {
           accessFields: newFields
         };
       });
+    } else {
+      // For existing services, call the API
+      setIsSubmitting(true);
       
-      setEditingField(null);
-      setEditingFieldIndex(null);
-      setIsDirty(true);
+      try {
+        if (editingField.id) {
+          // Update existing field
+          await updateAccessField(service.id, editingField.id, apiField);
+        } else {
+          // Add new field
+          await addAccessField(service.id, apiField);
+        }
+        
+        // Refresh service data
+        const updatedService = await fetchService(service.id);
+        setService({
+          ...updatedService,
+          accessFields: updatedService.accessFields || []
+        });
+        
+        toast({
+          title: editingField.id ? "Field updated" : "Field added",
+          description: `The field has been ${editingField.id ? "updated" : "added"} successfully`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: `Failed to ${editingField.id ? "update" : "add"} field. Please try again.`,
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
+    
+    setEditingField(null);
+    setEditingFieldIndex(null);
+    setIsDirty(true);
   };
 
   const handleFieldChange = (field: keyof AccessField, value: any) => {
@@ -395,6 +451,18 @@ export default function ServiceDetails() {
 
   // Handle the overall service save
   const handleSaveService = async () => {
+    // Validate URLs
+    if (service.website && !isValidUrl(service.website)) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid website URL or leave it empty",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Similar validation for other URL fields
+    
     setIsSubmitting(true);
     
     try {
@@ -453,7 +521,7 @@ export default function ServiceDetails() {
 
   if (isLoading && !isNewService) {
     return (
-      <DashboardLayout userRole="admin">
+        <DashboardLayout >
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -465,7 +533,7 @@ export default function ServiceDetails() {
   }
 
   return (
-    <DashboardLayout userRole="admin">
+    <DashboardLayout >
       <div className="space-y-4 p-4 md:p-0">
         <div className="flex items-center mb-6">
           <Button 

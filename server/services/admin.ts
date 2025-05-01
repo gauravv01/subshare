@@ -88,3 +88,12 @@ export const getUserCounts = async (req: any, res: any) => {
     const userCounts = await prisma.user.count();
     return res.json(userCounts);
 };
+
+export const getUsers=async (req:any,res:any)=>{
+    const users=await prisma.user.findMany({
+        orderBy:{
+            createdAt:"desc"
+        }
+    })
+    return res.json(users)
+}

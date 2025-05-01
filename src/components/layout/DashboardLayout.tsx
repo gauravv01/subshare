@@ -36,6 +36,9 @@ type SidebarItemProps = {
   onClick?: () => void;
 };
 
+const user=localStorage.getItem("user");
+const token=localStorage.getItem("token");
+
 const SidebarItem = ({ icon, label, href, active, onClick }: SidebarItemProps) => {
   return (
     <NavLink to={href}>
@@ -55,12 +58,11 @@ const SidebarItem = ({ icon, label, href, active, onClick }: SidebarItemProps) =
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  userRole?: "admin" | "unified";
 }
 
 export default function DashboardLayout({ 
   children, 
-  userRole = "unified" 
+
 }: DashboardLayoutProps) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -72,15 +74,15 @@ export default function DashboardLayout({
   
   const renderNavItems = (onClick?: () => void) => (
     <nav className="space-y-1">
-      <SidebarItem 
+   {!token &&   <SidebarItem 
         icon={<Home className="h-5 w-5" />} 
         label="Home" 
         href="/"
         active={location.pathname === "/"} 
         onClick={onClick}
-      />
+      />}
       
-      {userRole === "admin" && (
+      {userRole === "ADMIN" && (
         <>
           <SidebarItem 
             icon={<LayoutDashboard className="h-5 w-5" />} 
@@ -110,7 +112,7 @@ export default function DashboardLayout({
         </>
       )}
 
-      {userRole === "unified" && (
+      {userRole === "UNIFIED" && (
         <>
           <SidebarItem 
             icon={<LayoutDashboard className="h-5 w-5" />} 
@@ -172,6 +174,8 @@ export default function DashboardLayout({
     navigate("/login");
   };
 
+  const userRole = localStorage.getItem("userRole");
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Desktop Sidebar */}
@@ -186,7 +190,7 @@ export default function DashboardLayout({
         </div>
         
         <div className="border-t p-4">
-          <button className="flex items-center text-red-500 hover:text-red-600">
+          <button className="flex items-center text-red-500 hover:text-red-600" onClick={handleLogout}>
             <LogOut className="h-5 w-5 mr-2" />
             <span>Logout</span>
           </button>
@@ -223,7 +227,7 @@ export default function DashboardLayout({
                   </div>
                   
                   <div className="border-t p-4">
-                    <button className="flex items-center text-red-500 hover:text-red-600 w-full">
+                    <button className="flex items-center text-red-500 hover:text-red-600 w-full" onClick={handleLogout}>
                       <LogOut className="h-5 w-5 mr-2" />
                       <span>Logout</span>
                     </button>
@@ -274,7 +278,7 @@ export default function DashboardLayout({
         <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-white flex items-center justify-around z-30">
 
           
-          {(userRole === "unified" || !userRole) && (
+          {(userRole === "UNIFIED" || !userRole) && (
             <>
               <NavLink to="/dashboard" className="py-3 flex flex-col items-center w-1/5">
                 <LayoutDashboard className={`h-5 w-5 ${location.pathname === "/dashboard" || location.pathname === "/my-subscriptions" ? "text-primary" : "text-gray-500"}`} />
@@ -299,7 +303,7 @@ export default function DashboardLayout({
             </>
           )}
           
-          {userRole === "admin" && (
+          {userRole === "ADMIN" && (
             <>
               <NavLink to="/admin" className="py-3 flex flex-col items-center w-1/3">
                 <LayoutDashboard className={`h-5 w-5 ${location.pathname === "/admin" ? "text-primary" : "text-gray-500"}`} />

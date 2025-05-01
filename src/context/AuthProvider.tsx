@@ -10,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -36,17 +36,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await axiosInstance.post('/auth/login', { email, password });
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userRole', response.data.user.role);
       setUser(response.data.user);
     } catch (error) {
       throw new Error('Login failed');
     }
   };
   
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, name: string) => {
     try {
-      const response = await axiosInstance.post('/auth/signup', { email, password });
+      const response = await axiosInstance.post('/auth/signup', { email, password, name });
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userRole', response.data.user.role);
       setUser(response.data.user);
     } catch (error) {
       throw new Error('Registration failed');

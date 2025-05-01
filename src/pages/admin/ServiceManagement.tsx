@@ -55,8 +55,8 @@ export default function ServiceManagement() {
   } = useServices();
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,6 +80,10 @@ export default function ServiceManagement() {
     loadServices();
   }, []);
 
+
+  useEffect(()=>{
+    console.log(services)
+  },[services])
   // Filter and search services
   const filteredServices = services.filter(service => {
     // Search by name or description
@@ -90,12 +94,12 @@ export default function ServiceManagement() {
     }
     
     // Filter by category
-    if (selectedCategory && service.category !== selectedCategory) {
+    if (selectedCategory !== "all" && service.category !== selectedCategory) {
       return false;
     }
     
     // Filter by status
-    if (selectedStatus && service.status !== selectedStatus) {
+    if (selectedStatus !== "all" && service.status !== selectedStatus) {
       return false;
     }
     
@@ -200,7 +204,7 @@ export default function ServiceManagement() {
 
   if (isLoading) {
     return (
-      <DashboardLayout userRole="admin">
+      <DashboardLayout >
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -212,7 +216,7 @@ export default function ServiceManagement() {
   }
 
   return (
-    <DashboardLayout userRole="admin">
+    <DashboardLayout >
       <div className="space-y-4 p-4 md:p-0">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -250,7 +254,7 @@ export default function ServiceManagement() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="STREAMING">Streaming</SelectItem>
                 <SelectItem value="GAMING">Gaming</SelectItem>
                 <SelectItem value="PRODUCTIVITY">Productivity</SelectItem>
@@ -266,7 +270,7 @@ export default function ServiceManagement() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="INACTIVE">Inactive</SelectItem>
                 <SelectItem value="PENDING">Pending</SelectItem>

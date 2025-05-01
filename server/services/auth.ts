@@ -12,7 +12,7 @@ const signupSchema = z.object({
   password: z.string().min(6),
 });
 
-export const signup = async (userEmail: string, userPassword: string, userAgent: string, ip: string ) => {
+export const signup = async (userEmail: string, userPassword: string, userName: string, userAgent: string, ip: string ) => {
   const validated = signupSchema.parse({ email: userEmail, password: userPassword });
 
   const hashedPassword = await bcrypt.hash(validated.password, 10);
@@ -20,7 +20,8 @@ export const signup = async (userEmail: string, userPassword: string, userAgent:
   const user = await prisma.user.create({
     data: { 
       email: validated.email, 
-      password: hashedPassword 
+      password: hashedPassword,
+      name: userName
     },
   });
 

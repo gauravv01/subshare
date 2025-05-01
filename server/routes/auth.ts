@@ -5,9 +5,9 @@ import { getUser } from '../middleware/user';
 const router = Router();
 
 router.post("/signup", async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password, name } = req.body;
   try {
-    const { user, token } = await signup(email, password, req.headers['user-agent'] || '', req.ip || '');
+    const { user, token } = await signup(email, password, name, req.headers['user-agent'] || '', req.ip || '');
     res.status(201).json({ user, token });
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });

@@ -9,14 +9,12 @@ import { ArrowRight, PlusCircle, User, Users, CreditCard, Calendar, BarChart3, T
 import { useState } from "react";
 
 export default function Dashboard() {
-  const [userRole, setUserRole] = useState<"unified" | "admin">("unified");
+  const [userRole, setUserRole] = useState<"UNIFIED" | "ADMIN">("UNIFIED");
 
-  const changeRole = (role: "account-holder" | "co-subscriber" | "admin") => {
-    setUserRole(role === "admin" ? "admin" : "unified");
-  };
+
 
   return (
-    <DashboardLayout userRole={userRole}>
+    <DashboardLayout >
       <div className="space-y-8">
         <Card>
           <CardHeader className="pb-3">
@@ -26,20 +24,17 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex space-x-4">
               <Button 
-                variant={userRole === "unified" ? "default" : "outline"} 
-                onClick={() => changeRole("account-holder")}
+                variant={userRole === "UNIFIED" ? "default" : "outline"} 
               >
                 Account Holder
               </Button>
               <Button 
-                variant={userRole === "unified" ? "default" : "outline"} 
-                onClick={() => changeRole("co-subscriber")}
+                variant={userRole === "UNIFIED" ? "default" : "outline"} 
               >
                 Co-Subscriber
               </Button>
               <Button 
-                variant={userRole === "admin" ? "default" : "outline"}
-                onClick={() => changeRole("admin")}
+                variant={userRole === "ADMIN" ? "default" : "outline"}
               >
                 Admin
               </Button>
@@ -47,13 +42,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {userRole === "unified" && <AccountHolderDashboard />}
-        {userRole === "unified" && <CoSubscriberDashboard />}
-        {userRole === "admin" && <AdminDashboard />}
+        {userRole === "UNIFIED" && <AccountHolderDashboard />}
+        {userRole === "UNIFIED" && <CoSubscriberDashboard />}
+        {userRole === "ADMIN" && <AdminDashboard />}
       </div>
     </DashboardLayout>
   );
-}
+} 
 
 function AccountHolderDashboard() {
   return (

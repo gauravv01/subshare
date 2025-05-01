@@ -106,7 +106,7 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <DashboardLayout userRole="admin">
+      <DashboardLayout >
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -118,7 +118,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout userRole="admin">
+      <DashboardLayout >
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
