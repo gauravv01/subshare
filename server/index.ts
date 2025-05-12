@@ -33,7 +33,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Middleware
 app.use(cors({
-  origin: 'https://subshare-xonz.vercel.app/',
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
