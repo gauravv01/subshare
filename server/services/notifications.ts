@@ -39,6 +39,7 @@ const markAsRead = async (notificationId: string, userId: string) => {
 };
 
 const markAllAsRead = async (userId: string) => {
+  console.log("markAllAsRead", userId);
   await prisma.notification.updateMany({
     where: {
       userId,

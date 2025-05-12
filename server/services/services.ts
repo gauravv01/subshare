@@ -44,6 +44,7 @@ const getServices = async () => {
 };
 
 const getService = async (id: string) => {
+  console.log("getService", id);
   const service = await prisma.service.findUnique({
     where: { id },
     include: {
