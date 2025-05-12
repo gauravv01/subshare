@@ -36,10 +36,20 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173", // Replace with your frontend URL
- 
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['set-cookie'],
+  optionsSuccessStatus: 200
 }));
-app.use(helmet());
+
+// Disable helmet for development to avoid CORS issues
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" }
+  }));
+
 
 // Rate limiting
 const limiter = rateLimit({
