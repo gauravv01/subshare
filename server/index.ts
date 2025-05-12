@@ -35,8 +35,9 @@ if (process.env.NODE_ENV !== 'production') {
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.options('*', cors());
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: true, 
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
