@@ -118,7 +118,7 @@ export default function Connect() {
     
     // Apply category filter
     if (selectedCategory && selectedCategory !== "all") {
-      results = results.filter(sub => sub.service?.category === selectedCategory);
+        results = results.filter(sub => sub.service?.category === selectedCategory);
     }
     
     // Apply country filter
