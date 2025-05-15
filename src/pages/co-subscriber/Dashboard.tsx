@@ -8,7 +8,7 @@ import { PlusCircle, Users, User, CreditCard, BarChart3, TrendingUp } from "luci
 
 export default function CoSubscriberDashboard() {
   return (
-    <DashboardLayout userRole="unified">
+    <DashboardLayout >
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Subscriber Dashboard</h1>
