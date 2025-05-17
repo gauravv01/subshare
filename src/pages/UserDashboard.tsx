@@ -106,6 +106,7 @@ export default function UserDashboard() {
           <div className="flex gap-2">
             <Button 
               variant="outline" 
+              className="cursor-pointer text-black"
               onClick={async () => {
                 setIsLoading(true);
                 try {
@@ -131,7 +132,7 @@ export default function UserDashboard() {
               )}
               Refresh
             </Button>
-            <Button asChild>
+            <Button asChild className="cursor-pointer text-black" variant="outline" >
               <Link to="/create-subscription">
                 <Plus className="mr-2 h-4 w-4" /> Create Subscription
               </Link>

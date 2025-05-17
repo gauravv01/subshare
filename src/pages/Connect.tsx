@@ -421,7 +421,7 @@ export default function Connect() {
                         <div className="text-sm text-gray-500">
                           {subscription.owner?.country || 'Global'}
                         </div>
-                        <Button variant="ghost" size="sm" className="text-primary gap-1 p-0">
+                        <Button variant="outline" size="sm" className="text-primary gap-1  cursor-pointer">
                           View Details <ChevronRight className="h-4 w-4" />
                         </Button>
                       </CardFooter>
