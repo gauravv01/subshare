@@ -507,7 +507,8 @@ export default function UserSettings() {
                   <Button 
                     type="submit" 
                     disabled={profileLoading}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 cursor-pointer"
+                    variant="outline"
                   >
                     {profileLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {profileLoading ? "Updating..." : "Update Profile"}
@@ -650,7 +651,7 @@ export default function UserSettings() {
                     )}
                   </div>
                   
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting} className="cursor-pointer" variant="outline">
                     {isSubmitting ? "Saving..." : "Save Payment Method"}
                   </Button>
                 </form>
@@ -837,7 +838,7 @@ export default function UserSettings() {
                     )}
                   </div>
                   
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting} className="cursor-pointer" variant="outline">
                     {isSubmitting ? "Saving..." : "Save Withdrawal Method"}
                   </Button>
                 </form>
@@ -896,7 +897,7 @@ export default function UserSettings() {
                   <Switch checked={true} />
                 </div>
                 
-                <Button>Save Preferences</Button>
+                <Button className="cursor-pointer" variant="outline">Save Preferences</Button>
               </CardContent>
             </Card>
             
@@ -948,7 +949,7 @@ export default function UserSettings() {
                 </div>
                 
                 <div className="flex justify-between items-center mt-4">
-                  <Button variant="outline">View All Withdrawals</Button>
+                  <Button variant="outline" className="cursor-pointer">View All Withdrawals</Button>
                   <Button>Withdraw Now ($102.60 available)</Button>
                 </div>
               </CardContent>
@@ -1071,50 +1072,7 @@ export default function UserSettings() {
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Tax Information</CardTitle>
-                <CardDescription>
-                  Manage your tax documentation and settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-md">
-                    <h3 className="font-medium mb-1">Tax Reporting</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      You're responsible for reporting income earned from subscription sharing according to your local tax laws.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium">Download Tax Summary (2024)</p>
-                        <Button variant="outline" size="sm">
-                          <FileText className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 border rounded-md">
-                    <h3 className="font-medium mb-1">Tax Information</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax ID/SSN</span>
-                        <span className="font-medium">••••••1234</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tax Form</span>
-                        <span className="font-medium">W-9</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="mt-3">
-                      Update Tax Information
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+           
           </TabsContent>
           
 
@@ -1162,66 +1120,13 @@ export default function UserSettings() {
                     </div>
                   </div>
                   
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting} className="cursor-pointer" variant="outline">
                     {isSubmitting ? "Updating..." : "Update Password"}
                   </Button>
                 </form>
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Two-Factor Authentication</CardTitle>
-                <CardDescription>
-                  Add an extra layer of security to your account.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 border rounded-md">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">Two-Factor Authentication</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {twoFactorEnabled 
-                          ? `Enabled (${twoFactorMethod?.toLowerCase()})` 
-                          : "Not enabled"}
-                      </p>
-                    </div>
-                    <Switch 
-                      checked={twoFactorEnabled} 
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          handle2FASetup();
-                        } else {
-                          handle2FADisable();
-                        }
-                      }}
-                      disabled={securityLoading}
-                    />
-                  </div>
-                </div>
-                
-                <div className="p-4 border rounded-md">
-                  <h3 className="font-medium mb-2">Verification Methods</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <input type="radio" id="sms" name="verification" className="mr-2" checked={twoFactorMethod === 'SMS'} onChange={() => setSelectedMethod('SMS')} />
-                      <Label htmlFor="sms">SMS Verification</Label>
-                    </div>
-                    <div className="flex items-center">
-                      <input type="radio" id="email" name="verification" className="mr-2" checked={twoFactorMethod === 'EMAIL'} onChange={() => setSelectedMethod('EMAIL')} />
-                      <Label htmlFor="email">Email Verification</Label>
-                    </div>
-                    <div className="flex items-center">
-                      <input type="radio" id="app" name="verification" className="mr-2" checked={twoFactorMethod === '2FA_APP'} onChange={() => setSelectedMethod('2FA_APP')} />
-                      <Label htmlFor="app">Authenticator App</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <Button onClick={handle2FASetup}>Set Up Two-Factor Authentication</Button>
-              </CardContent>
-            </Card>
+           
             
             <Card>
               <CardHeader>
@@ -1264,7 +1169,7 @@ export default function UserSettings() {
               </CardContent>
             </Card>
             
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
                 <CardDescription>
@@ -1280,13 +1185,13 @@ export default function UserSettings() {
                         This will permanently delete your account and all associated data.
                       </p>
                     </div>
-                    <Button variant="destructive" size="sm">
+                    <Button variant="outline" size="sm" className="cursor-pointer" >
                       Delete Account
                     </Button>
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </TabsContent>
         </Tabs>
       </div>

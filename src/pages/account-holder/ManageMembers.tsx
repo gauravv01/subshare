@@ -152,7 +152,7 @@ export default function ManageMembers() {
 
   if (isLoading || subscriptionsLoading) {
     return (
-      <DashboardLayout userRole="unified">
+      <DashboardLayout>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -164,7 +164,7 @@ export default function ManageMembers() {
   }
 
   return (
-    <DashboardLayout userRole="unified">
+    <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Manage Members</h1>
@@ -342,10 +342,10 @@ export default function ManageMembers() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={messageLoading}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={messageLoading} className="cursor-pointer">
               Cancel
             </Button>
-            <Button onClick={handleSendMessage} disabled={messageLoading || !messageText.trim()}>
+            <Button onClick={handleSendMessage} disabled={messageLoading || !messageText.trim()} className="cursor-pointer  text-black" variant="outline">
               {messageLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

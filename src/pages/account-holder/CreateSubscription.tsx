@@ -462,7 +462,7 @@ export default function CreateSubscription() {
                 </div>
                 
                 <CardFooter className="flex justify-end px-0 pb-0">
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading} className="cursor-pointer text-black" variant="outline">
                     {isLoading ? "Creating..." : "Create Subscription"}
                   </Button>
                 </CardFooter>
@@ -517,7 +517,7 @@ export default function CreateSubscription() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsDialogOpen(false)}>Confirm</Button>
+            <Button onClick={() => setIsDialogOpen(false)} className="cursor-pointer text-black" variant="outline">Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

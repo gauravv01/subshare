@@ -24,6 +24,7 @@ import { useSubscriptions } from "../context/SubscriptionProvider";
 import { useServices } from "../context/ServiceProvider";
 import { useToast } from "../hooks/use-toast";
 import { format } from "date-fns";
+import DashboardLayout from "../components/layout/DashboardLayout";
 
 export default function Connect() {
   const { toast } = useToast();
@@ -219,9 +220,8 @@ export default function Connect() {
   }
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
+    <DashboardLayout>
+
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Find Subscription Shares</h1>
@@ -434,7 +434,6 @@ export default function Connect() {
         </div>
       </main>
       
-      <Footer />
-    </div>
+    </DashboardLayout>
   );
 }

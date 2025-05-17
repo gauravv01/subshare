@@ -608,7 +608,7 @@ export default function Messages() {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewMessageOpen(false)}>Cancel</Button>
-            <Button onClick={handleSendNewMessage}>Send Message</Button>
+            <Button onClick={handleSendNewMessage} className="cursor-pointer  text-black" variant="outline">Send Message</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
