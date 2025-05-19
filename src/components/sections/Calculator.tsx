@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   servicePrices, 
@@ -6,7 +6,7 @@ import {
   PlanType, 
   MembersType, 
   DurationType 
-} from "@/lib/calculatorData";
+} from "../../lib/calculatorData";
 
 export default function Calculator() {
   const [service, setService] = useState<ServiceType>("netflix");
@@ -58,7 +58,7 @@ export default function Calculator() {
           transition={{ duration: 0.6 }}
         >
           <div className="grid md:grid-cols-2">
-            <div className="p-8 bg-gradient-to-br from-primary to-indigo-700 text-white">
+            <div className="p-8 bg-[#503bd9] text-white">
               <h3 className="text-2xl font-bold mb-6">Savings Calculator</h3>
               <div className="space-y-4">
                 <div>

@@ -4,7 +4,7 @@ import React from "react";
 
 export default function Hero() {
   return (
-    <section className="relative bg-gradient-to-br from-primary to-indigo-700 text-white">
+    <section className="relative bg-[#503bd9] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <motion.div 
@@ -20,12 +20,15 @@ export default function Hero() {
               Share your work, productivity, and entertainment service subscriptions with other users and split the costs. Access premium services at reasonable prices in a safe and convenient way.
             </p>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-              <NavLink to="/connect" className="bg-white text-primary rounded-md px-6 py-3 text-center font-medium hover:bg-gray-100 transition duration-300">
+              <NavLink to="/connect" className="border border-white rounded-md px-6 py-3 text-center font-medium  hover:text-primary transition duration-300">
                 Get Started
               </NavLink>
-              <NavLink to="#how-it-works" className="border border-white rounded-md px-6 py-3 text-center font-medium hover:bg-white hover:text-primary transition duration-300">
+              <a href="#how-it-works" onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              }} className="border border-white rounded-md px-6 py-3 text-center font-medium hover:text-primary transition duration-300">
                 How It Works
-              </NavLink>
+              </a>
             </div>
           </motion.div>
           <motion.div 

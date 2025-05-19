@@ -75,10 +75,10 @@ export default function Header() {
             transition={{ duration: 0.5 }}
           >
             <NavLink to="/login" className="hidden md:block">
-              <Button variant="ghost">Login</Button>
+              <Button variant="outline" className="cursor-pointer text-black">Login</Button>
             </NavLink>
             <NavLink to="/signup">
-              <Button variant="default" className="text-[#523ddb] shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:bg-primary/90 transition-all duration-200">
+              <Button variant="outline" className="cursor-pointer text-black">
                 Get Started
               </Button>
             </NavLink>

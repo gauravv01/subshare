@@ -2,19 +2,20 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Facebook, Twitter, Instagram, Mail, Phone } from "lucide-react";
+import logo from "../../images/logo.jpg";
 
 export default function Footer() {
   return (
     <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-gray-300 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-4 gap-12 md:gap-8">
+        <div className="grid md:grid-cols-3 gap-20 md:gap-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             <div className="text-white text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4">
-              ShareSub
+              chacha
             </div>
             <p className="text-gray-400 mb-6">
               A subscription sharing platform that makes premium services more affordable
@@ -38,20 +39,7 @@ export default function Footer() {
             </div>
           </motion.div>
           
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <h3 className="text-white font-bold mb-6">Services</h3>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-gray-400 hover:text-white">Entertainment</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white">Work & Productivity</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white">Education</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white">Music Streaming</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white">Cloud Storage</a></li>
-            </ul>
-          </motion.div>
+       
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}

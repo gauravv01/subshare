@@ -1,8 +1,9 @@
+import React from "react";
 import { motion } from "framer-motion";
 
 export default function Cta() {
   return (
-    <section className="py-16 bg-primary">
+    <section className="py-16 bg-[#503bd9]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
