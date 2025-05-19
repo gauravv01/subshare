@@ -350,7 +350,7 @@ export default function Messages() {
             </p>
           </div>
           
-          <Button onClick={() => setNewMessageOpen(true)}>
+          <Button onClick={() => setNewMessageOpen(true)} className="cursor-pointer text-black" variant="outline">
             <MessageSquare className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">New Message</span>
           </Button>

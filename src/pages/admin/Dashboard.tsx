@@ -273,7 +273,7 @@ export default function AdminDashboard() {
 
               <div className="mt-4 text-center">
                 <NavLink to="/admin/users">
-                  <Button variant="outline" size="sm">View All Users</Button>
+                  <Button variant="outline" className="cursor-pointer text-black" size="sm">View All Users</Button>
                 </NavLink>
               </div>
             </CardContent>
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
 
               <div className="mt-4 text-center">
                 <NavLink to="/admin/services">
-                  <Button variant="outline" size="sm">Manage Services</Button>
+                  <Button variant="outline" className="cursor-pointer text-black" size="sm">Manage Services</Button>
                 </NavLink>
               </div>
             </CardContent>

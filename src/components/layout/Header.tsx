@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "../ui/button";
+import logo  from "../../images/logo.jpg";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -31,13 +32,8 @@ export default function Header() {
             transition={{ duration: 0.5 }}
           >
             <NavLink to="/" className="flex-shrink-0">
-              <motion.span 
-                className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                ShareSub
-              </motion.span>
+         
+               <img src={logo} alt="Logo" className=" w-15 object-cover " />
             </NavLink>
             <nav className="hidden md:ml-10 md:flex md:space-x-8">
               {[

@@ -560,7 +560,7 @@ export default function UserSettings() {
                   </div>
                 </div>
                 
-                <Button className="mt-4">Save Preferences</Button>
+                <Button className="mt-4 cursor-pointer text-black" variant="outline">Save Preferences</Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -698,7 +698,7 @@ export default function UserSettings() {
                   </div>
                 </div>
                 
-                <Button className="mt-4">Save Settings</Button>
+                <Button className="mt-4 cursor-pointer text-black" variant="outline">Save Settings</Button>
               </CardContent>
             </Card>
             

@@ -228,7 +228,7 @@ export default function ServiceManagement() {
           
           <div className="flex flex-wrap gap-2">
             <NavLink to="/admin/service/new">
-              <Button className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto cursor-pointer text-black" variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
                 Add New Service
               </Button>

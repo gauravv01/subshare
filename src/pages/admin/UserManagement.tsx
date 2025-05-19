@@ -558,7 +558,7 @@ export default function UserManagement() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-x-20 gap-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground">Email</h4>
                   <p>{selectedUser.email}</p>
@@ -588,10 +588,10 @@ export default function UserManagement() {
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewUserDialog(false)}>
+            <Button variant="outline" className="cursor-pointer text-black" onClick={() => setViewUserDialog(false)}>
               Close
             </Button>
-            <Button onClick={() => {
+            <Button className="cursor-pointer text-black" variant="outline" onClick={() => {
               setViewUserDialog(false);
               if (selectedUser) handleEditUser(selectedUser);
             }}>
@@ -673,8 +673,8 @@ export default function UserManagement() {
               </div>
           
               <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setEditUserDialog(false)}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button variant="outline" className="cursor-pointer text-black" type="button" onClick={() => setEditUserDialog(false)}>Cancel</Button>
+                <Button type="submit" disabled={isSubmitting} className="cursor-pointer text-black" variant="outline">
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

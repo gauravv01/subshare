@@ -15,6 +15,7 @@ const serviceSchema = z.object({
   // Remove these if they don't exist in your schema
   features: z.array(z.string()).optional(),
   allowedCountries: z.array(z.string()).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE',"PENDING","REVIEW"]),
 });
 
 const accessFieldSchema = z.object({
@@ -101,6 +102,7 @@ const updateService = async (id: string, data: any) => {
     termsUrl,
     privacyUrl,
     supportUrl,
+    status,
     // Remove features and allowedCountries if they don't exist in your schema
     // features,
     // allowedCountries
@@ -118,6 +120,7 @@ const updateService = async (id: string, data: any) => {
       termsUrl,
       privacyUrl,
       supportUrl,
+      status,
       // Don't include features and allowedCountries if they don't exist in your schema
     },
     include: {

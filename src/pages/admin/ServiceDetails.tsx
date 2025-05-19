@@ -698,7 +698,7 @@ export default function ServiceDetails() {
                     Delete Service
                   </Button>
                 )}
-                <Button onClick={handleSaveService} disabled={isSubmitting}>
+                <Button onClick={handleSaveService} disabled={isSubmitting} className="cursor-pointer text-black" variant="outline">
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isNewService ? "Create Service" : "Save Changes"}
                 </Button>
@@ -874,10 +874,10 @@ export default function ServiceDetails() {
                       </div>
                       
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingPlan(null)}>
+                        <Button variant="outline" className="cursor-pointer text-black" onClick={() => setEditingPlan(null)}>
                           Cancel
                         </Button>
-                        <Button onClick={handleSavePlan} disabled={isSubmitting}>
+                        <Button onClick={handleSavePlan} disabled={isSubmitting} className="cursor-pointer text-black" variant="outline">
                           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Save Plan
                         </Button>
@@ -892,7 +892,7 @@ export default function ServiceDetails() {
               <Button variant="outline" onClick={() => navigate("/admin/services")}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveService} disabled={isSubmitting}>
+              <Button onClick={handleSaveService} disabled={isSubmitting} className="cursor-pointer text-black" variant="outline">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isNewService ? "Create Service" : "Save Changes"}
               </Button>
@@ -1035,10 +1035,10 @@ export default function ServiceDetails() {
                       </div>
                       
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingField(null)}>
+                        <Button variant="outline" className="cursor-pointer text-black" onClick={() => setEditingField(null)}>
                           Cancel
                         </Button>
-                        <Button onClick={handleSaveField}>
+                        <Button onClick={handleSaveField} className="cursor-pointer text-black" variant="outline">
                           Save Field
                         </Button>
                       </DialogFooter>
@@ -1052,7 +1052,7 @@ export default function ServiceDetails() {
               <Button variant="outline" onClick={() => navigate("/admin/services")}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveService} disabled={isSubmitting}>
+              <Button onClick={handleSaveService} disabled={isSubmitting} className="cursor-pointer text-black" variant="outline">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isNewService ? "Create Service" : "Save Changes"}
               </Button>

@@ -219,7 +219,6 @@ export default function CreateSubscription() {
                                     {service.name}
                                   </SelectItem>
                                 ))}
-                                <SelectItem value="custom">Custom Service</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -227,21 +226,7 @@ export default function CreateSubscription() {
                         )}
                       />
                       
-                      {isCustomService && (
-                        <FormField
-                          control={form.control}
-                          name="customService"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Custom Service Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Enter service name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                   
                       
                       <FormField
                         control={form.control}

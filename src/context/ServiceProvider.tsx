@@ -176,7 +176,7 @@ export const ServiceProvider = ({ children }: { children: React.ReactNode }) => 
   };
 
   const updateServiceStatus = async (id: string, status: string) => {
-    const response = await axiosInstance.put(`/services/${id}/status`, { status });
+    const response = await axiosInstance.put(`/services/${id}`, { status });
     setServices(services.map(s => s.id === id ? response.data : s));
   };
 
